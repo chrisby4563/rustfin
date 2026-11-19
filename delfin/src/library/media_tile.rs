@@ -162,6 +162,35 @@ impl AsyncComponent for MediaTile {
                     }
                 },
 
+                // Gesehen-Anzeige oben rechts: Haken = gesehen,
+                // Zahl = ungesehene Folgen einer Serie/Staffel.
+                add_overlay = &gtk::Box {
+                    add_css_class: "watched-badge",
+                    set_halign: gtk::Align::End,
+                    set_valign: gtk::Align::Start,
+                    set_margin_top: 6,
+                    set_margin_end: 6,
+                    set_can_target: false,
+                    #[watch]
+                    set_visible: model.watched_badge().is_some(),
+
+                    gtk::Image {
+                        set_icon_name: Some("object-select-symbolic"),
+                        #[watch]
+                        set_visible: matches!(model.watched_badge(), Some(WatchedBadge::Played)),
+                    },
+
+                    gtk::Label {
+                        #[watch]
+                        set_visible: matches!(model.watched_badge(), Some(WatchedBadge::Unplayed(_))),
+                        #[watch]
+                        set_label: &match model.watched_badge() {
+                            Some(WatchedBadge::Unplayed(count)) => count.to_string(),
+                            _ => String::new(),
+                        },
+                    },
+                },
+
                 add_overlay = &gtk::ProgressBar {
                     set_valign: gtk::Align::End,
                     set_visible: model.media.user_data.as_ref().map(|user_data| user_data.played_percentage).is_some(),
@@ -445,6 +474,30 @@ async fn fetch_image_bytes(img_url: &str, media: &BaseItemDto) -> Option<Vec<u8>
         Err(err) => {
             warn!("Error reading media tile image for {:?}: {err}", media.id);
             None
+        }
+    }
+}
+
+/// Was oben rechts auf der Kachel steht.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WatchedBadge {
+    Played,
+    Unplayed(i32),
+}
+
+impl MediaTile {
+    fn watched_badge(&self) -> Option<WatchedBadge> {
+        let user_data = self.media.user_data.as_ref()?;
+        if user_data.played == Some(true) {
+            return Some(WatchedBadge::Played);
+        }
+        let is_container = matches!(
+            self.media.type_,
+            Some(BaseItemKind::Series | BaseItemKind::Season)
+        );
+        match user_data.unplayed_item_count {
+            Some(count) if is_container && count > 0 => Some(WatchedBadge::Unplayed(count)),
+            _ => None,
         }
     }
 }
