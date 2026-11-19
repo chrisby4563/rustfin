@@ -7,7 +7,7 @@ use relm4::{
     prelude::{AsyncComponent, AsyncComponentParts},
     AsyncComponentSender,
 };
-use tracing::error;
+use tracing::{debug, error, warn};
 
 use crate::{
     app::{AppInput, APP_BROKER},
@@ -345,14 +345,30 @@ async fn get_thumbnail(
         _ => return None,
     };
 
-    let img_bytes: VecDeque<u8> = reqwest::get(img_url)
-        .await
-        .expect("Error getting media tile image: {img_url}")
-        .bytes()
-        .await
-        .expect("Error getting media tile image bytes: {img_url}")
-        .into_iter()
-        .collect();
+    // Ein fehlendes Bild (404) oder ein Netzhänger darf weder die App beenden
+    // noch als „kaputtes Bild“ gemeldet werden: die Kachel bleibt dann leer.
+    let response = match reqwest::get(img_url).await {
+        Ok(response) => response,
+        Err(err) => {
+            warn!("Error getting media tile image for {:?}: {err}", media.id);
+            return None;
+        }
+    };
+    if !response.status().is_success() {
+        debug!(
+            "No media tile image for {:?} (HTTP {})",
+            media.id,
+            response.status()
+        );
+        return None;
+    }
+    let img_bytes: VecDeque<u8> = match response.bytes().await {
+        Ok(bytes) => bytes.into_iter().collect(),
+        Err(err) => {
+            warn!("Error reading media tile image for {:?}: {err}", media.id);
+            return None;
+        }
+    };
 
     let pixbuf = match gdk_pixbuf::Pixbuf::from_read(img_bytes) {
         Ok(pixbuf) => pixbuf,
