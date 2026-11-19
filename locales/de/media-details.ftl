@@ -40,3 +40,6 @@ media-details-toggle-watched-error =
         [true] gesehen
        *[false] nicht gesehen
     } markiert werden
+media-details-cast = Besetzung & Stab
+media-details-cast-director = Regie
+media-details-cast-writer = Drehbuch

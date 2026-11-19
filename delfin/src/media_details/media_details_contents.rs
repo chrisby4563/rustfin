@@ -18,6 +18,7 @@ use crate::{
 
 use super::{
     media_details_header::{MediaDetailsHeader, MediaDetailsHeaderInput, MediaDetailsHeaderOutput},
+    cast::{cast_people, CastRow},
     run_time::RunTime,
     seasons::{Seasons, SeasonsOutput},
 };
@@ -30,6 +31,7 @@ pub struct MediaDetailsContents {
     seasons: Option<AsyncController<Seasons>>,
     initial_season_id: Option<Uuid>,
     selected_season_index: Option<usize>,
+    cast: Option<Controller<CastRow>>,
 }
 
 #[derive(Debug)]
@@ -134,6 +136,7 @@ impl AsyncComponent for MediaDetailsContents {
                 _ => media.season_id,
             },
             selected_season_index: None,
+            cast: None,
         };
 
         let widgets = view_output!();
@@ -154,6 +157,23 @@ impl AsyncComponent for MediaDetailsContents {
         model.add_info(info_box, genre_label);
 
         model.load_seasons(&sender, container);
+
+        // Besetzung unter allem anderen, breiter als der Textblock.
+        let people = cast_people(model.item.people.as_deref().unwrap_or_default());
+        if !people.is_empty() {
+            let cast = CastRow::builder()
+                .launch((model.api_client.clone(), people))
+                .detach();
+            let clamp = adw::Clamp::builder()
+                .maximum_size(1200)
+                .margin_start(12)
+                .margin_end(12)
+                .margin_bottom(32)
+                .child(cast.widget())
+                .build();
+            root.append(&clamp);
+            model.cast = Some(cast);
+        }
 
         AsyncComponentParts { model, widgets }
     }

@@ -38,3 +38,6 @@ media-details-toggle-watched-error = Failed to mark { $type ->
         *[false] not watched
     }
 media-details-backdrop-error = Failed to load media backdrop
+media-details-cast = Cast & Crew
+media-details-cast-director = Director
+media-details-cast-writer = Writer

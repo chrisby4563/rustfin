@@ -160,6 +160,20 @@ impl ApiClient {
         Ok(url.to_string())
     }
 
+    /// Porträt einer Person (Besetzung), quadratisch beschnitten passt es in
+    /// einen runden Avatar.
+    pub fn get_person_image_url(&self, person_id: &uuid::Uuid, tag: &str) -> Result<String> {
+        let mut url = self
+            .root
+            .join(&format!("Items/{person_id}/Images/Primary"))?;
+        url.query_pairs_mut()
+            .append_pair("tag", tag)
+            .append_pair("fillWidth", "192")
+            .append_pair("fillHeight", "192")
+            .append_pair("quality", "90");
+        Ok(url.to_string())
+    }
+
     pub fn get_backdrop_url(&self, item: &BaseItemDto) -> Result<String> {
         let item_id = match item.id {
             Some(item_id) => item_id,

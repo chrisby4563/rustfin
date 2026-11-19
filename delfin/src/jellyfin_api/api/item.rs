@@ -89,7 +89,8 @@ impl ApiClient {
         let mut url = self
             .root
             .join(&format!("Users/{}/Items/{item_id}", self.account.id))?;
-        url.query_pairs_mut().append_pair("fields", "Trickplay");
+        url.query_pairs_mut()
+            .append_pair("fields", "Trickplay,People,Chapters,MediaSources");
 
         let res = self.client.get(url).send().await?.json().await?;
         Ok(res)

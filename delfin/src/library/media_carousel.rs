@@ -325,7 +325,7 @@ impl MediaCarousel {
 
 /// Scrollt eine Achse um so viel, wie GTK selbst für einen Mausrad-Raster
 /// nimmt (page_size^(2/3)), damit es sich wie überall sonst anfühlt.
-fn scroll_by_wheel(adjustment: &gtk::Adjustment, delta: f64) {
+pub(crate) fn scroll_by_wheel(adjustment: &gtk::Adjustment, delta: f64) {
     let step = adjustment.page_size().powf(2.0 / 3.0);
     let max = adjustment.upper() - adjustment.page_size();
     adjustment.set_value((adjustment.value() + delta * step).clamp(0.0, max.max(0.0)));
