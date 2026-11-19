@@ -52,6 +52,8 @@ pub struct MediaTile {
     media: BaseItemDto,
     api_client: Arc<ApiClient>,
     thumbnail: Option<Texture>,
+    /// Bild wird noch geholt (Ladekreis). Danach ohne Bild: leere Kachel.
+    loading: bool,
 }
 
 #[derive(Debug)]
@@ -137,7 +139,7 @@ impl AsyncComponent for MediaTile {
 
                 add_overlay = &gtk::Spinner {
                     #[watch]
-                    set_visible: model.thumbnail.is_none(),
+                    set_visible: model.loading,
                     start: (),
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::Center,
@@ -236,6 +238,12 @@ impl AsyncComponent for MediaTile {
                     Some(BaseItemKind::CollectionFolder) => {
                         APP_BROKER.send(AppInput::ShowCollection(self.media.clone()));
                     }
+                    // Serie/Staffel: erst die Staffel- und Folgenauswahl zeigen
+                    // statt blind eine Folge zu starten. Abspielen geht dort
+                    // über den Knopf im Kopfbereich.
+                    Some(BaseItemKind::Series | BaseItemKind::Season) => {
+                        APP_BROKER.send(AppInput::ShowDetails(self.media.clone()));
+                    }
                     _ => {
                         match get_next_playable_media(self.api_client.clone(), self.media.clone())
                             .await
@@ -274,6 +282,7 @@ impl AsyncComponent for MediaTile {
         match message {
             MediaTileCommandOutput::ThumbnailLoaded(thumbnail) => {
                 self.thumbnail = thumbnail;
+                self.loading = false;
             }
         }
     }
@@ -285,6 +294,7 @@ impl MediaTile {
             media,
             api_client,
             thumbnail: None,
+            loading: true,
         }
     }
 
@@ -340,43 +350,53 @@ async fn get_thumbnail(
         }
     };
 
-    let img_url = match img_url {
-        Ok(img_url) => img_url,
-        _ => return None,
+    // Erst das vom Original gewählte Bild, dann Ersatzbilder: Folgen in
+    // „Weiterschauen“ haben auf Jellyfin 12 oft weder eigene Bildkennungen
+    // noch Eltern-Thumb – dann bleibt die Kachel sonst leer.
+    let kinds: &[&str] = match tile_display {
+        MediaTileDisplay::Cover | MediaTileDisplay::CoverLarge => &["Primary"],
+        _ => &["Thumb", "Backdrop", "Primary"],
     };
-
-    // Ein fehlendes Bild (404) oder ein Netzhänger darf weder die App beenden
-    // noch als „kaputtes Bild“ gemeldet werden: die Kachel bleibt dann leer.
-    let response = match reqwest::get(img_url).await {
-        Ok(response) => response,
-        Err(err) => {
-            warn!("Error getting media tile image for {:?}: {err}", media.id);
-            return None;
+    let mut candidates: Vec<String> = img_url.ok().into_iter().collect();
+    for owner in [
+        media.series_id,
+        media.parent_thumb_item_id,
+        media.parent_backdrop_item_id,
+        media.id,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        for kind in kinds {
+            if let Ok(mut url) = api_client.root.join(&format!("Items/{owner}/Images/{kind}")) {
+                url.query_pairs_mut()
+                    .append_pair("fillHeight", &tile_display.height().to_string())
+                    .append_pair("quality", "96");
+                let url = url.to_string();
+                if !candidates.contains(&url) {
+                    candidates.push(url);
+                }
+            }
         }
-    };
-    if !response.status().is_success() {
-        debug!(
-            "No media tile image for {:?} (HTTP {})",
-            media.id,
-            response.status()
-        );
-        return None;
     }
-    let img_bytes: VecDeque<u8> = match response.bytes().await {
-        Ok(bytes) => bytes.into_iter().collect(),
-        Err(err) => {
-            warn!("Error reading media tile image for {:?}: {err}", media.id);
-            return None;
-        }
-    };
 
-    let pixbuf = match gdk_pixbuf::Pixbuf::from_read(img_bytes) {
-        Ok(pixbuf) => pixbuf,
-        _ => {
+    let mut found = None;
+    for img_url in candidates {
+        if let Some(bytes) = fetch_image_bytes(&img_url, media).await {
+            // Prüfen, ob es sich dekodieren lässt; das Pixbuf selbst darf
+            // nicht über ein await gehalten werden (nicht Send).
+            if gdk_pixbuf::Pixbuf::from_read(VecDeque::from(bytes.clone())).is_ok() {
+                found = Some(bytes);
+                break;
+            }
             error!("Error creating media tile pixbuf: {:#?}", media.id);
-            return None;
         }
+    }
+    let Some(bytes) = found else {
+        debug!("No media tile image at all for {:?}", media.id);
+        return None;
     };
+    let pixbuf = gdk_pixbuf::Pixbuf::from_read(VecDeque::from(bytes)).ok()?;
 
     // TODO: merge resizing with how it's done for episode list
 
@@ -404,4 +424,25 @@ async fn get_thumbnail(
     );
 
     Some(gdk::Texture::for_pixbuf(&resized))
+}
+
+/// Holt Bilddaten; `None` bei Netzfehler oder fehlendem Bild (404).
+async fn fetch_image_bytes(img_url: &str, media: &BaseItemDto) -> Option<Vec<u8>> {
+    let response = match reqwest::get(img_url).await {
+        Ok(response) => response,
+        Err(err) => {
+            warn!("Error getting media tile image for {:?}: {err}", media.id);
+            return None;
+        }
+    };
+    if !response.status().is_success() {
+        return None;
+    }
+    match response.bytes().await {
+        Ok(bytes) => Some(bytes.to_vec()),
+        Err(err) => {
+            warn!("Error reading media tile image for {:?}: {err}", media.id);
+            None
+        }
+    }
 }

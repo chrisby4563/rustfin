@@ -28,6 +28,7 @@ pub struct MediaDetailsContents {
     series_id: Option<Uuid>,
     header: OnceCell<AsyncController<MediaDetailsHeader>>,
     seasons: Option<AsyncController<Seasons>>,
+    initial_season_id: Option<Uuid>,
     selected_season_index: Option<usize>,
 }
 
@@ -128,6 +129,10 @@ impl AsyncComponent for MediaDetailsContents {
             series_id,
             header: OnceCell::new(),
             seasons: None,
+            initial_season_id: match media.type_ {
+                Some(BaseItemKind::Season) => media.id,
+                _ => media.season_id,
+            },
             selected_season_index: None,
         };
 
@@ -189,6 +194,7 @@ impl MediaDetailsContents {
                     api_client: self.api_client.clone(),
                     series_id,
                     initial_selected_season_index: self.selected_season_index,
+                    initial_season_id: self.initial_season_id,
                 })
                 .forward(sender.input_sender(), |m| m.into());
             container.append(seasons.widget());

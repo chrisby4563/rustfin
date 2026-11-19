@@ -21,8 +21,61 @@ pub async fn get_next_playable_media(
 
     match media_type {
         BaseItemKind::Series => get_next_episode(api_client, media_id).await,
+        // Eine Staffel ist nur ein Ordner ohne eigene Videodatei. Jellyfin 12
+        // zeigt Staffeln z. B. unter „Neueste“; direkt abgespielt antwortet der
+        // Server mit 400 („Season … has no media sources“) und der Player
+        // bleibt schwarz bei 00:00.
+        BaseItemKind::Season => get_next_episode_in_season(api_client, &media).await,
         _ => Some(media),
     }
+}
+
+/// Nächste Folge innerhalb einer Staffel: eine angefangene, sonst die erste
+/// ungesehene, sonst (alles gesehen) die erste Folge der Staffel.
+pub async fn get_next_episode_in_season(
+    api_client: Arc<ApiClient>,
+    season: &BaseItemDto,
+) -> Option<BaseItemDto> {
+    let season_id = season.id?;
+    let Some(series_id) = season.series_id else {
+        tracing::warn!("Season {season_id} has no series id");
+        return None;
+    };
+
+    let episodes = api_client
+        .get_episodes(
+            &GetEpisodesOptionsBuilder::default()
+                .series_id(series_id)
+                .season_id(season_id)
+                .is_missing(false)
+                .build()
+                .unwrap(),
+        )
+        .await
+        .ok()?;
+
+    let played = |episode: &BaseItemDto| {
+        episode
+            .user_data
+            .as_ref()
+            .and_then(|user_data| user_data.played)
+            .unwrap_or(false)
+    };
+    let started = |episode: &BaseItemDto| {
+        episode
+            .user_data
+            .as_ref()
+            .and_then(|user_data| user_data.playback_position_ticks)
+            .unwrap_or(0)
+            > 0
+    };
+
+    episodes
+        .iter()
+        .find(|episode| started(episode) && !played(episode))
+        .or_else(|| episodes.iter().find(|episode| !played(episode)))
+        .or_else(|| episodes.first())
+        .cloned()
 }
 
 pub async fn get_next_episode(api_client: Arc<ApiClient>, media_id: Uuid) -> Option<BaseItemDto> {

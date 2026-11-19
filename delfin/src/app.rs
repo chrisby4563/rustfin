@@ -70,6 +70,9 @@ pub struct App {
     server: Option<config::Server>,
     account: Option<config::Account>,
     preferences: Option<Controller<Preferences>>,
+    /// Zuletzt gestartetes Element und wann – fängt Doppelklicks ab, die
+    /// sonst zweimal abspielten („Page … is already in navigation stack“).
+    last_play: Option<(Option<uuid::Uuid>, std::time::Instant)>,
 }
 
 #[derive(Debug)]
@@ -187,6 +190,7 @@ impl Component for App {
             server: None,
             account: None,
             preferences: None,
+            last_play: None,
         };
 
         let widgets = view_output!();
@@ -227,6 +231,11 @@ impl Component for App {
                 Some(tag != AppPage::VideoPlayer.to_string())
             })
             .build();
+
+        // Zurück nur über den Knopf (und Escape/Alt+Links/Maustaste), nicht
+        // per Wischgeste: Ein waagerechtes Wischen in einer Kachelreihe löste
+        // sonst versehentlich „Zurück“ aus.
+        disable_swipe_back(navigation);
 
         ComponentParts { model, widgets }
     }
@@ -312,6 +321,13 @@ impl Component for App {
                 }
             }
             AppInput::PlayVideo(item) => {
+                if let Some((last_id, at)) = self.last_play {
+                    if last_id == item.id && at.elapsed() < std::time::Duration::from_millis(1500) {
+                        return;
+                    }
+                }
+                self.last_play = Some((item.id, std::time::Instant::now()));
+
                 if self.video_player.get().is_none() {
                     let video_player = VideoPlayer::builder()
                         .launch_with_broker((), &VIDEO_PLAYER_BROKER)
@@ -331,7 +347,14 @@ impl Component for App {
                             api_client.clone(),
                             Box::new(item),
                         ));
-                    navigation.push_by_tag(&AppPage::VideoPlayer.to_string());
+                    let player_tag = AppPage::VideoPlayer.to_string();
+                    let player_visible = navigation
+                        .visible_page()
+                        .and_then(|page| page.tag())
+                        .is_some_and(|tag| tag == player_tag);
+                    if !player_visible {
+                        navigation.push_by_tag(&player_tag);
+                    }
                 }
             }
             AppInput::SignOut => {
@@ -448,3 +471,33 @@ relm4::new_action_group!(AppActionGroup, "app");
 relm4::new_stateless_action!(MenuAction, AppActionGroup, "menu");
 relm4::new_stateless_action!(PreferencesAction, AppActionGroup, "preferences");
 relm4::new_stateless_action!(QuitAction, AppActionGroup, "quit");
+
+/// Nimmt der Navigationsansicht die Wischgeste „Zurück“.
+///
+/// libadwaita bietet dafür keinen Schalter (Stand 1.10). Die Geste kommt aus
+/// einem internen AdwSwipeTracker, der sich als Scroll-Empfänger (Touchpad)
+/// und als Zieh-Geste (Touchscreen) an die Ansicht hängt. Genau diese beiden
+/// Arten werden abgenommen; Tastenkürzel (ShortcutController) und die
+/// Maus-Zurücktaste (GestureClick) bleiben unberührt.
+fn disable_swipe_back(navigation: &adw::NavigationView) {
+    let controllers: Vec<gtk::EventController> = navigation
+        .observe_controllers()
+        .iter::<glib::Object>()
+        .filter_map(Result::ok)
+        .filter_map(|object| object.downcast::<gtk::EventController>().ok())
+        .filter(|controller| {
+            controller.is::<gtk::EventControllerScroll>() || controller.is::<gtk::GestureDrag>()
+        })
+        .collect();
+    for controller in &controllers {
+        tracing::debug!(
+            "Wischgeste entfernt: {} ({:?})",
+            controller.type_().name(),
+            controller.propagation_phase()
+        );
+        navigation.remove_controller(controller);
+    }
+    if controllers.is_empty() {
+        tracing::warn!("Keine Wisch-Empfänger an der Navigationsansicht gefunden");
+    }
+}

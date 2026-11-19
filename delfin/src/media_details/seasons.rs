@@ -27,6 +27,9 @@ pub struct SeasonsInit {
     pub api_client: Arc<ApiClient>,
     pub series_id: Uuid,
     pub initial_selected_season_index: Option<usize>,
+    /// Staffel, die beim Öffnen vorausgewählt wird, falls kein Index gesetzt
+    /// ist (Staffel- oder Folgen-Kachel angeklickt).
+    pub initial_season_id: Option<Uuid>,
 }
 
 #[derive(Debug)]
@@ -81,6 +84,7 @@ impl AsyncComponent for Seasons {
             api_client,
             series_id,
             initial_selected_season_index,
+            initial_season_id,
         } = init;
 
         let widgets = view_output!();
@@ -102,7 +106,9 @@ impl AsyncComponent for Seasons {
 
         let initial_selected_season_index = match initial_selected_season_index {
             Some(season) if season < model.seasons.len() => season,
-            _ => 0,
+            _ => initial_season_id
+                .and_then(|id| model.seasons.iter().position(|season| season.id == Some(id)))
+                .unwrap_or(0),
         };
 
         let season_buttons = SeasonButtons::builder()

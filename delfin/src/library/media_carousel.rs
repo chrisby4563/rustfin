@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use adw::prelude::*;
-use gtk::glib;
+use gtk::{gdk, glib};
 use jellyfin_api::types::BaseItemDto;
 use relm4::{prelude::*, ComponentParts};
 
@@ -13,6 +13,12 @@ use super::{
 };
 
 const MIN_PADDING: i32 = 24;
+/// Dauer der Animation, wenn die Pfeilknöpfe eine Bildschirmbreite weiterblättern.
+const PAGE_ANIMATION_MS: u32 = 300;
+/// Anteil der sichtbaren Breite, den ein Pfeilklick weiterblättert. Etwas
+/// weniger als eine volle Breite, damit eine angeschnittene Kachel sichtbar
+/// bleibt und man die Orientierung behält.
+const PAGE_FRACTION: f64 = 0.9;
 
 pub(crate) enum MediaCarouselItem {
     Tile(AsyncController<MediaTile>),
@@ -33,10 +39,19 @@ pub(crate) enum MediaCarouselType {
     Buttons,
 }
 
+/// Eine waagerechte Reihe von Kacheln.
+///
+/// Früher ein `adw::Carousel` mit festen Seiten: Wischen auf dem Touchpad zog
+/// eine ganze Seite und liess sie einrasten. Jetzt ein frei scrollendes
+/// `gtk::ScrolledWindow` – Touchpad wischt fliessend (mit Schwung), die
+/// Pfeilknöpfe blättern animiert um gut eine Bildschirmbreite, Shift+Mausrad
+/// scrollt die Reihe, das normale Mausrad scrollt die Seite.
 pub(crate) struct MediaCarousel {
     media_tile_display: MediaTileDisplay,
     media_tiles: Vec<MediaCarouselItem>,
-    pages: Vec<gtk::Box>,
+    /// Passt die Reihe nicht vollständig in die Breite? Nur dann Pfeile zeigen.
+    overflowing: bool,
+    animation: Option<adw::TimedAnimation>,
 }
 
 pub(crate) struct MediaCarouselInit {
@@ -50,23 +65,14 @@ pub(crate) struct MediaCarouselInit {
 
 #[derive(Debug)]
 pub(crate) enum MediaCarouselInput {
-    Resize(i32),
     Left,
     Right,
+    Overflowing(bool),
 }
 
 #[derive(Debug)]
 pub(crate) enum MediaCarouselOutput {
     LabelClicked,
-}
-
-impl MediaTileDisplay {
-    fn min_height(&self, pages: &[gtk::Box]) -> i32 {
-        match pages.len() {
-            1 => self.height() + 50,
-            _ => self.height() + 80,
-        }
-    }
 }
 
 #[relm4::component(pub(crate))]
@@ -121,7 +127,7 @@ impl Component for MediaCarousel {
                     set_hexpand: true,
                     add_css_class: "linked",
                     #[watch]
-                    set_visible: carousel.n_pages() > 1,
+                    set_visible: model.overflowing,
 
                     gtk::Button {
                         set_icon_name: "left",
@@ -141,53 +147,52 @@ impl Component for MediaCarousel {
                 },
             },
 
-            #[name = "breakpoints"]
-            adw::BreakpointBin {
-                #[watch]
-                set_size_request: (
-                    model.media_tile_display.width() + MIN_PADDING,
-                    model.media_tile_display.min_height(&model.pages),
-                ),
+            #[name = "scroller"]
+            gtk::ScrolledWindow {
+                set_hscrollbar_policy: gtk::PolicyType::Automatic,
+                set_vscrollbar_policy: gtk::PolicyType::Never,
+                set_propagate_natural_height: true,
+                set_kinetic_scrolling: true,
                 set_hexpand: true,
+                set_min_content_height: model.media_tile_display.height(),
 
-                #[wrap(Some)]
-                set_child = &gtk::Box {
-                    set_orientation: gtk::Orientation::Vertical,
-                    set_spacing: 8,
-
-                    #[name = "carousel"]
-                    adw::Carousel {
-                        set_allow_scroll_wheel: false,
-
-                        connect_page_changed => move |carousel, page_index| {
-                            for i in 0..carousel.n_pages() {
-                                carousel.nth_page(i).set_can_focus(i == page_index);
-                            }
-                        },
-
-                        add_controller = gtk::EventControllerScroll {
-                            // TODO: Might need a separate controller for Horizontal scrolling that doesn't check if shift is pressed
-                            set_flags: gtk::EventControllerScrollFlags::VERTICAL,
-                            connect_scroll[sender] => move |_, _dx, dy| {
-                                let shift_state = SHIFT_STATE.read();
-                                if shift_state.pressed() {
-                                    sender.input(
-                                        if dy > 0.0 {
-                                            MediaCarouselInput::Right
-                                        } else {
-                                            MediaCarouselInput::Left
-                                        }
-                                    );
-                                    return glib::Propagation::Stop;
-                                }
-                                glib::Propagation::Proceed
-                            },
-                        },
+                // Mausrad (nicht Touchpad) gehört der Seite: ein waagerechtes
+                // ScrolledWindow würde das senkrechte Rad sonst in waagerechtes
+                // Scrollen umdeuten und die Seite blockieren. Mit Shift scrollt
+                // das Rad die Reihe.
+                add_controller = gtk::EventControllerScroll {
+                    set_flags: gtk::EventControllerScrollFlags::VERTICAL,
+                    set_propagation_phase: gtk::PropagationPhase::Capture,
+                    connect_scroll => move |controller, _dx, dy| {
+                        if controller.unit() != gdk::ScrollUnit::Wheel {
+                            return glib::Propagation::Proceed;
+                        }
+                        let Ok(scroller) = controller
+                            .widget()
+                            .downcast::<gtk::ScrolledWindow>()
+                        else {
+                            return glib::Propagation::Proceed;
+                        };
+                        if SHIFT_STATE.read().pressed() {
+                            scroll_by_wheel(&scroller.hadjustment(), dy);
+                        } else if let Some(page) = scroller
+                            .parent()
+                            .and_then(|parent| parent.ancestor(gtk::ScrolledWindow::static_type()))
+                            .and_downcast::<gtk::ScrolledWindow>()
+                        {
+                            scroll_by_wheel(&page.vadjustment(), dy);
+                        }
+                        glib::Propagation::Stop
                     },
-                    #[name = "carousel_indicator"]
-                    adw::CarouselIndicatorLines {},
-                }
-            }
+                },
+
+                #[name = "row"]
+                gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+                    set_spacing: MIN_PADDING,
+                    set_halign: gtk::Align::Start,
+                },
+            },
         }
     }
 
@@ -205,7 +210,7 @@ impl Component for MediaCarousel {
             label_clickable,
         } = init;
 
-        let media_tiles = media
+        let media_tiles: Vec<MediaCarouselItem> = media
             .iter()
             .map(|media| match carousel_type {
                 MediaCarouselType::Tiles => MediaCarouselItem::Tile(
@@ -224,17 +229,28 @@ impl Component for MediaCarousel {
         let model = MediaCarousel {
             media_tile_display,
             media_tiles,
-            pages: vec![],
+            overflowing: false,
+            animation: None,
         };
 
         let widgets = view_output!();
-        let breakpoints = &widgets.breakpoints;
-        let carousel = &widgets.carousel;
-        let carousel_indicator = &widgets.carousel_indicator;
 
-        carousel_indicator.set_carousel(Some(carousel));
+        for tile in &model.media_tiles {
+            widgets.row.append(tile.widget());
+        }
 
-        add_breakpoints(breakpoints, &sender, media_tile_display);
+        // Pfeile nur zeigen, wenn die Reihe breiter ist als der sichtbare Teil.
+        let hadjustment = widgets.scroller.hadjustment();
+        let update_overflow = {
+            let sender = sender.clone();
+            move |adjustment: &gtk::Adjustment| {
+                sender.input(MediaCarouselInput::Overflowing(
+                    adjustment.upper() - adjustment.page_size() > 1.0,
+                ));
+            }
+        };
+        hadjustment.connect_changed(update_overflow.clone());
+        update_overflow(&hadjustment);
 
         ComponentParts { model, widgets }
     }
@@ -246,91 +262,71 @@ impl Component for MediaCarousel {
         sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
-        let carousel: &adw::Carousel = &widgets.carousel;
-
         match message {
-            MediaCarouselInput::Resize(tiles_per_page) => {
-                // Remove existing pages
-                for page in &self.pages {
-                    while page.first_child().is_some() {
-                        page.remove(&page.first_child().unwrap());
-                    }
-                    carousel.remove(page);
+            MediaCarouselInput::Overflowing(overflowing) => {
+                if self.overflowing == overflowing {
+                    return;
                 }
-                self.pages.clear();
-
-                let media_tile_chunks: Vec<&[MediaCarouselItem]> =
-                    self.media_tiles.chunks(tiles_per_page as usize).collect();
-
-                for (i, &chunk) in media_tile_chunks.iter().enumerate() {
-                    let page = gtk::Box::builder()
-                        .orientation(gtk::Orientation::Horizontal)
-                        .homogeneous(true)
-                        .hexpand(true)
-                        .spacing(MIN_PADDING)
-                        .can_focus(i == 0)
-                        .build();
-
-                    // Not a full page, we don't want the tiles to be spaced out across the screen
-                    if chunk.len() < tiles_per_page as usize {
-                        page.set_halign(gtk::Align::Start);
-                    }
-
-                    for tile in chunk {
-                        page.append(tile.widget());
-                    }
-
-                    carousel.append(&page);
-                    self.pages.push(page);
-                }
-
-                self.update_view(widgets, sender);
+                self.overflowing = overflowing;
             }
-            MediaCarouselInput::Left => {
-                let cur_pos = carousel.position() as i32;
-                let mut pos = cur_pos - 1;
-                if pos < 0 {
-                    pos = carousel.n_pages() as i32 - 1;
-                }
-
-                let next_page = carousel.nth_page(pos as u32);
-                carousel.scroll_to(&next_page, true);
-            }
-            MediaCarouselInput::Right => {
-                let cur_pos = carousel.position() as i32;
-                let mut pos = cur_pos + 1;
-                if pos > (carousel.n_pages() as i32) - 1 {
-                    pos = 0;
-                }
-
-                let next_page = carousel.nth_page(pos as u32);
-                carousel.scroll_to(&next_page, true);
-            }
+            MediaCarouselInput::Left => self.page(&widgets.scroller, -1.0),
+            MediaCarouselInput::Right => self.page(&widgets.scroller, 1.0),
         }
+        self.update_view(widgets, sender);
     }
 }
 
-fn add_breakpoints(
-    breakpoints: &adw::BreakpointBin,
-    sender: &ComponentSender<MediaCarousel>,
-    media_tile_display: MediaTileDisplay,
-) {
-    for tiles_per_page in 1..=8 {
-        let required =
-            (media_tile_display.width() * tiles_per_page) + (MIN_PADDING * (tiles_per_page - 1));
+impl MediaCarousel {
+    /// Blättert animiert um gut eine sichtbare Breite. Am Ende angekommen geht
+    /// es wie beim alten Karussell wieder an den Anfang (und umgekehrt).
+    fn page(&mut self, scroller: &gtk::ScrolledWindow, direction: f64) {
+        let adjustment = scroller.hadjustment();
+        let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
+        if max <= 0.0 {
+            return;
+        }
 
-        let breakpoint = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
-            adw::BreakpointConditionLengthType::MinWidth,
-            required as f64,
-            adw::LengthUnit::Px,
-        ));
-        breakpoint.connect_apply({
-            let sender = sender.clone();
-            move |_| {
-                sender.input(MediaCarouselInput::Resize(tiles_per_page));
+        // Läuft noch eine Animation, von deren Ziel aus weiterrechnen, damit
+        // schnelle Doppelklicks nicht verschluckt werden.
+        let from = adjustment.value();
+        let base = match &self.animation {
+            Some(animation) if animation.state() == adw::AnimationState::Playing => {
+                animation.value_to()
             }
-        });
+            _ => from,
+        };
 
-        breakpoints.add_breakpoint(breakpoint);
+        let step = adjustment.page_size() * PAGE_FRACTION;
+        let at_start = base <= 0.5;
+        let at_end = base >= max - 0.5;
+        let to = if direction > 0.0 && at_end {
+            0.0
+        } else if direction < 0.0 && at_start {
+            max
+        } else {
+            (base + direction * step).clamp(0.0, max)
+        };
+
+        if let Some(animation) = self.animation.take() {
+            animation.skip();
+        }
+
+        let target = adw::CallbackAnimationTarget::new({
+            let adjustment = adjustment.clone();
+            move |value| adjustment.set_value(value)
+        });
+        let animation =
+            adw::TimedAnimation::new(scroller, adjustment.value(), to, PAGE_ANIMATION_MS, target);
+        animation.set_easing(adw::Easing::EaseOutCubic);
+        animation.play();
+        self.animation = Some(animation);
     }
+}
+
+/// Scrollt eine Achse um so viel, wie GTK selbst für einen Mausrad-Raster
+/// nimmt (page_size^(2/3)), damit es sich wie überall sonst anfühlt.
+fn scroll_by_wheel(adjustment: &gtk::Adjustment, delta: f64) {
+    let step = adjustment.page_size().powf(2.0 / 3.0);
+    let max = adjustment.upper() - adjustment.page_size();
+    adjustment.set_value((adjustment.value() + delta * step).clamp(0.0, max.max(0.0)));
 }
