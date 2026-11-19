@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "delfin",
+  "jellyfin_api",
   "video_player_mpv/sys",
   "video_player_mpv",
   "video_player_gst",

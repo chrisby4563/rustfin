@@ -17,7 +17,7 @@ dirs = "5.0.1"
 env_logger = "0.11.3"
 fluent-templates = { version = "0.9.1", features = ["tera"] }
 image = { version = "0.25.1", default-features = false, features = ["jpeg"] }
-jellyfin_api = "10.9.2-1"
+jellyfin_api = { path = "../jellyfin_api" }
 relm4 = { workspace = true }
 relm4-icons = { version = "0.8.2" }
 reqwest = { version = "0.12.2", features = ["json"] }
