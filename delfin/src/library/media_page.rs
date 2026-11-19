@@ -15,7 +15,7 @@ use super::{
     media_tile::MediaTileDisplay,
 };
 
-const ITEMS_PER_PAGE: usize = 24;
+const ITEMS_PER_PAGE: usize = 100;
 
 pub struct MediaPage<F: Fetcher + Send + Sync + 'static, EmptyComponent: Component>
 where
@@ -28,6 +28,9 @@ where
     media_tile_display: MediaTileDisplay,
     state: FetcherState,
     count: Option<FetcherCount>,
+    /// Zusatzleisten im Kopf (z. B. Sortieren/Filter) – dann bleibt der Kopf
+    /// auch bei leerem Ergebnis sichtbar, damit man den Filter lösen kann.
+    has_header_extra: bool,
 }
 
 pub struct MediaPageInit<F, C: Component> {
@@ -35,6 +38,10 @@ pub struct MediaPageInit<F, C: Component> {
     pub fetcher: F,
     pub empty_component: Option<Controller<C>>,
     pub media_tile_display: Option<MediaTileDisplay>,
+    /// Mitte der Titelzeile (zwischen Titel und Seitenzähler).
+    pub header_center: Option<gtk::Widget>,
+    /// Unter der Titelzeile (z. B. Buchstabenleiste).
+    pub header_below: Option<gtk::Widget>,
 }
 
 #[derive(Debug)]
@@ -66,14 +73,20 @@ where
                 set_margin_top: 0,
                 set_margin_bottom: 0,
                 #[watch]
-                set_visible: matches!(model.state, FetcherState::Loading(_) | FetcherState::Ready(_)),
+                set_visible: matches!(model.state, FetcherState::Loading(_) | FetcherState::Ready(_))
+                    || (model.has_header_extra && matches!(model.state, FetcherState::Empty)),
 
+                #[name = "header_area"]
                 gtk::Box {
-                    set_orientation: gtk::Orientation::Horizontal,
+                set_orientation: gtk::Orientation::Vertical,
+
+                #[name = "header"]
+                gtk::CenterBox {
                     set_margin_top: PAGE_MARGIN,
                     set_margin_bottom: PAGE_MARGIN,
 
-                    gtk::Label {
+                    #[wrap(Some)]
+                    set_start_widget = &gtk::Label {
                         #[watch]
                         set_label: &model.fetcher.title(),
                         add_css_class: "title-1",
@@ -81,9 +94,12 @@ where
                         set_ellipsize: pango::EllipsizeMode::End,
                     },
 
+                    #[wrap(Some)]
+                    set_end_widget = &gtk::Box {
+                    set_orientation: gtk::Orientation::Horizontal,
+
                     gtk::Label {
-                        set_halign: gtk::Align::End,
-                        set_hexpand: true,
+                        set_margin_start: 8,
                         set_margin_end: 8,
                         #[watch]
                         set_label?: &model.count.as_ref().map(|count| count.label()),
@@ -113,6 +129,8 @@ where
                             },
                         },
                     },
+                    },
+                },
                 },
             },
 
@@ -170,6 +188,8 @@ where
             fetcher,
             empty_component,
             media_tile_display,
+            header_center,
+            header_below,
         } = init;
 
         let (tx, mut rx) = mpsc::unbounded_channel();
@@ -193,9 +213,17 @@ where
             media_tile_display: media_tile_display.unwrap_or(MediaTileDisplay::Wide),
             state: FetcherState::Empty,
             count: None,
+            has_header_extra: header_center.is_some() || header_below.is_some(),
         };
 
         let widgets = view_output!();
+
+        if let Some(center) = &header_center {
+            widgets.header.set_center_widget(Some(center));
+        }
+        if let Some(below) = &header_below {
+            widgets.header_area.append(below);
+        }
 
         ComponentParts { model, widgets }
     }

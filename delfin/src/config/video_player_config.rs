@@ -32,6 +32,9 @@ pub struct VideoPlayerConfig {
     pub backend: VideoPlayerBackendPreference,
     pub hls_playback: bool,
     pub deinterlace: Deinterlace,
+    /// Bevorzugte Tonspur-Sprachen, Komma-getrennt in Reihenfolge
+    /// (ISO 639-1/-2, z. B. "de,deu,ger").
+    pub preferred_audio_languages: String,
 
     pub mpv_prefs: MpvPrefs,
 }
@@ -57,6 +60,7 @@ impl Default for VideoPlayerConfig {
             backend: VideoPlayerBackendPreference::default(),
             hls_playback: false,
             deinterlace: Deinterlace::default(),
+            preferred_audio_languages: "de,deu,ger".to_string(),
 
             mpv_prefs: MpvPrefs::default(),
         }
@@ -202,5 +206,16 @@ impl MpvPrefs {
             MpvHardwareDecoding::Custom => self.hardware_decoding_custom.to_owned(),
             MpvHardwareDecoding::Off => "no".into(),
         }
+    }
+}
+
+impl VideoPlayerConfig {
+    /// Bevorzugte Sprachen als Liste (klein geschrieben, ohne Leerzeichen).
+    pub fn preferred_audio_language_list(&self) -> Vec<String> {
+        self.preferred_audio_languages
+            .split(',')
+            .map(|lang| lang.trim().to_lowercase())
+            .filter(|lang| !lang.is_empty())
+            .collect()
     }
 }

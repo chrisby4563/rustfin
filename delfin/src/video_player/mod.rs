@@ -72,6 +72,9 @@ pub struct VideoPlayer {
     inhibit_cookie: Option<InhibitCookie>,
     player_state: PlayerState,
     next: Option<BaseItemDto>,
+    /// Stelle, an die nach dem Neuladen gesprungen wird (Tonspurwechsel bei
+    /// Server-Umwandlung). mpv ignoriert Sprünge vor Wiedergabebeginn.
+    pending_seek: Option<usize>,
 
     cursor: Option<gdk::Cursor>,
     cursor_debounce: Debounce,
@@ -255,6 +258,7 @@ impl Component for VideoPlayer {
             inhibit_cookie: None,
             player_state: PlayerState::Loading,
             next: None,
+            pending_seek: None,
 
             cursor: None,
             cursor_debounce,
@@ -378,8 +382,9 @@ impl Component for VideoPlayer {
                     let position = self.backend.borrow().position();
                     let url = api_client.get_stream_url_with_audio(media, Some(index));
                     info!("Switching server audio track to stream index {index} at {position}s");
+                    self.pending_seek = Some(position);
+                    self.set_player_state(PlayerState::Loading);
                     self.backend.borrow_mut().play_uri(&url);
-                    self.backend.borrow().seek_to(position);
                     VIDEO_PLAYER_MENU_BROKER.send(VideoPlayerMenuInput::SetStreamURL(url));
                 }
             }
@@ -675,6 +680,8 @@ impl VideoPlayer {
                 "hwdec",
                 &video_player_config.mpv_prefs.get_hardware_decoding(),
             );
+            // Bevorzugte Tonspur-Sprache bei direkt abgespielten Dateien.
+            mpv.set_property_string("alang", &video_player_config.preferred_audio_languages);
         });
     }
 
@@ -684,7 +691,9 @@ impl VideoPlayer {
         {
             // Seek once playback begins
             // If we seek too early, MPV ignores it
-            if let Some(playback_position_ticks) = self
+            if let Some(position) = self.pending_seek.take() {
+                self.backend.borrow().seek_to(position);
+            } else if let Some(playback_position_ticks) = self
                 .media
                 .as_ref()
                 .and_then(|m| m.user_data.clone())

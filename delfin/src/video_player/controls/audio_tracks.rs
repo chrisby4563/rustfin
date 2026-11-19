@@ -15,6 +15,7 @@ use jellyfin_api::types::{BaseItemDto, MediaStreamType};
 use tracing::warn;
 
 use crate::{
+    globals::CONFIG,
     jellyfin_api::api_client::ApiClient,
     tr,
     video_player::{
@@ -55,8 +56,9 @@ pub enum AudioTracksInput {
 
 #[derive(Debug)]
 pub enum AudioTracksCommandOutput {
-    /// (Server-Index, Name) und die vorausgewählte Spur.
-    ServerTracksLoaded(Vec<(i32, String)>, Option<i32>),
+    /// (Server-Index, Name), die ausgewählte Spur, und ob dorthin gewechselt
+    /// werden muss (Server-Vorauswahl war nicht die bevorzugte Sprache).
+    ServerTracksLoaded(Vec<(i32, String)>, Option<i32>, bool),
 }
 
 #[relm4::component(pub)]
@@ -137,7 +139,10 @@ impl Component for AudioTracks {
         root: &Self::Root,
     ) {
         match message {
-            AudioTracksCommandOutput::ServerTracksLoaded(tracks, default) => {
+            AudioTracksCommandOutput::ServerTracksLoaded(tracks, default, switch) => {
+                if let (true, Some(index)) = (switch, default) {
+                    VIDEO_PLAYER_BROKER.send(VideoPlayerInput::SwitchServerAudioTrack(index));
+                }
                 if tracks.len() < 2 {
                     return;
                 }
@@ -190,16 +195,44 @@ impl Component for AudioTracks {
                             Ok(info) => info,
                             Err(err) => {
                                 warn!("Error getting audio streams: {err}");
-                                return AudioTracksCommandOutput::ServerTracksLoaded(vec![], None);
+                                return AudioTracksCommandOutput::ServerTracksLoaded(vec![], None, false);
                             }
                         };
                         let source = info.media_sources.into_iter().next();
                         let default = source.as_ref().and_then(|s| s.default_audio_stream_index);
-                        let tracks = source
+                        let audio_streams: Vec<_> = source
                             .and_then(|s| s.media_streams)
                             .unwrap_or_default()
                             .into_iter()
                             .filter(|stream| stream.type_ == Some(MediaStreamType::Audio))
+                            .collect();
+
+                        // Bevorzugte Sprache: Spricht die vom Server gewählte
+                        // Spur sie nicht, aber eine andere, dorthin wechseln.
+                        let preferred = CONFIG.read().video_player.preferred_audio_language_list();
+                        let lang_rank = |stream: &jellyfin_api::types::MediaStream| {
+                            let lang = stream.language.clone().unwrap_or_default().to_lowercase();
+                            preferred.iter().position(|p| *p == lang)
+                        };
+                        let default_rank = audio_streams
+                            .iter()
+                            .find(|s| s.index == default)
+                            .and_then(lang_rank);
+                        let best = audio_streams
+                            .iter()
+                            .filter_map(|s| Some((lang_rank(s)?, s.index?)))
+                            .min_by_key(|(rank, _)| *rank);
+                        let mut selected = default;
+                        let mut switch = false;
+                        if let Some((rank, index)) = best {
+                            if default_rank.map_or(true, |d| rank < d) && Some(index) != default {
+                                selected = Some(index);
+                                switch = true;
+                            }
+                        }
+
+                        let tracks = audio_streams
+                            .into_iter()
                             .filter_map(|stream| {
                                 let name = stream
                                     .display_title
@@ -208,7 +241,7 @@ impl Component for AudioTracks {
                                 Some((stream.index?, name))
                             })
                             .collect();
-                        AudioTracksCommandOutput::ServerTracksLoaded(tracks, default)
+                        AudioTracksCommandOutput::ServerTracksLoaded(tracks, selected, switch)
                     });
                 }
             }

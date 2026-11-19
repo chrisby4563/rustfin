@@ -49,6 +49,8 @@ impl SimpleComponent for Collections {
                     fetcher,
                     empty_component: None,
                     media_tile_display: Some(MediaTileDisplay::CollectionWide),
+                    header_center: None,
+                    header_below: None,
                 })
                 .detach(),
         };

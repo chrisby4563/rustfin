@@ -9,3 +9,16 @@
     }
   }
 }
+
+// Greif-Leiste der Bildlaufleisten schmaler (Adwaita: 8px beim Überfahren).
+scrollbar.hovering slider,
+scrollbar:not(.overlay-indicator) slider {
+  min-width: 5px;
+  min-height: 5px;
+}
+
+// Buchstabenleiste: Bildlaufleiste liegt über den Buchstaben → besonders schmal.
+.letter-scroller scrollbar slider {
+  min-width: 2px;
+  min-height: 2px;
+}

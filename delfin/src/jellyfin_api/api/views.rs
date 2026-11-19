@@ -43,6 +43,7 @@ impl ApiClient {
     pub async fn get_collection_items(
         &self,
         collection: &BaseItemDto,
+        query: &CollectionQuery,
         start_index: usize,
         limit: usize,
     ) -> Result<(Vec<BaseItemDto>, usize)> {
@@ -55,8 +56,11 @@ impl ApiClient {
 
         url.query_pairs_mut()
             .append_pair("ParentId", &collection.id.unwrap().to_string())
-            .append_pair("SortBy", "SortName,ProductionYear")
-            .append_pair("SortOrder", "Ascending")
+            .append_pair("SortBy", query.sort.sort_by())
+            .append_pair(
+                "SortOrder",
+                if query.descending { "Descending" } else { "Ascending" },
+            )
             .append_pair("Recursive", "true")
             .append_pair("StartIndex", &start_index.to_string())
             .append_pair("Limit", &limit.to_string());
@@ -71,6 +75,24 @@ impl ApiClient {
                 .join(","),
         );
 
+        if query.unplayed_only {
+            url.query_pairs_mut().append_pair("IsPlayed", "false");
+        }
+        match query.letter {
+            // „#“: alles vor A (Zahlen, Zeichen)
+            Some('#') => {
+                url.query_pairs_mut().append_pair("NameLessThan", "A");
+            }
+            Some(letter) => {
+                url.query_pairs_mut()
+                    .append_pair("NameStartsWith", &letter.to_string());
+            }
+            None => {}
+        }
+        if let Some(genre) = &query.genre {
+            url.query_pairs_mut().append_pair("Genres", genre);
+        }
+
         let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
 
         let items = res.items;
@@ -79,5 +101,62 @@ impl ApiClient {
             .context("Total record count not returned")?;
 
         Ok((items, total_record_count as usize))
+    }
+}
+
+/// Sortierung in einer Bibliothek.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CollectionSort {
+    #[default]
+    Name,
+    Year,
+    DateAdded,
+    Rating,
+}
+
+impl CollectionSort {
+    pub const ALL: [CollectionSort; 4] = [
+        CollectionSort::Name,
+        CollectionSort::Year,
+        CollectionSort::DateAdded,
+        CollectionSort::Rating,
+    ];
+
+    fn sort_by(&self) -> &'static str {
+        match self {
+            CollectionSort::Name => "SortName,ProductionYear",
+            CollectionSort::Year => "ProductionYear,PremiereDate,SortName",
+            CollectionSort::DateAdded => "DateCreated,SortName",
+            CollectionSort::Rating => "CommunityRating,SortName",
+        }
+    }
+
+    /// Sinnvolle Richtung beim Umschalten: neu/Jahr/Bewertung absteigend.
+    pub fn default_descending(&self) -> bool {
+        !matches!(self, CollectionSort::Name)
+    }
+}
+
+/// Filter und Sortierung einer Bibliotheksansicht.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct CollectionQuery {
+    pub sort: CollectionSort,
+    pub descending: bool,
+    pub unplayed_only: bool,
+    /// Anfangsbuchstabe; `#` = Zahlen/Zeichen.
+    pub letter: Option<char>,
+    pub genre: Option<String>,
+}
+
+impl ApiClient {
+    /// Genres, die in einer Bibliothek vorkommen (alphabetisch).
+    pub async fn get_collection_genres(&self, collection: &BaseItemDto) -> Result<Vec<String>> {
+        let mut url = self.root.join("Genres")?;
+        url.query_pairs_mut()
+            .append_pair("ParentId", &collection.id.unwrap().to_string())
+            .append_pair("UserId", &self.account.id.to_string())
+            .append_pair("SortBy", "SortName");
+        let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
+        Ok(res.items.into_iter().filter_map(|genre| genre.name).collect())
     }
 }
