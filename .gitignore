@@ -8,3 +8,6 @@
 # Von Hand gebaute C-Bibliothek (ohne meson)
 video_player_mpv/sys/build/*.o
 video_player_mpv/sys/build/*.a
+
+# meson-Bauordner
+/_build
