@@ -238,10 +238,12 @@ impl AsyncComponent for MediaTile {
                     Some(BaseItemKind::CollectionFolder) => {
                         APP_BROKER.send(AppInput::ShowCollection(self.media.clone()));
                     }
-                    // Serie/Staffel: erst die Staffel- und Folgenauswahl zeigen
-                    // statt blind eine Folge zu starten. Abspielen geht dort
-                    // über den Knopf im Kopfbereich.
-                    Some(BaseItemKind::Series | BaseItemKind::Season) => {
+                    // Film/Serie/Staffel: erst die Detailseite (Infos,
+                    // Staffel- und Folgenauswahl) zeigen statt sofort
+                    // abzuspielen. Abspielen geht dort über den Knopf im
+                    // Kopfbereich. Einzelne Folgen (Weiterschauen, Next Up)
+                    // starten weiter direkt.
+                    Some(BaseItemKind::Movie | BaseItemKind::Series | BaseItemKind::Season) => {
                         APP_BROKER.send(AppInput::ShowDetails(self.media.clone()));
                     }
                     _ => {
