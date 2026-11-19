@@ -20,7 +20,17 @@ pub async fn get_next_playable_media(
     let media_type = media.type_.expect("Media missing type: {media:#?}");
 
     match media_type {
-        BaseItemKind::Series => get_next_episode(api_client, media_id).await,
+        BaseItemKind::Series => {
+            let next = get_next_episode(api_client.clone(), media_id).await?;
+            // Jellyfin 12 liefert unter „Weiterschauen“ teils die Staffel statt
+            // der Folge (z. B. bei Disc-Abbildern). Eine Staffel ist nicht
+            // abspielbar – dann deren nächste Folge nehmen.
+            if next.type_ == Some(BaseItemKind::Season) {
+                get_next_episode_in_season(api_client, &next).await
+            } else {
+                Some(next)
+            }
+        }
         // Eine Staffel ist nur ein Ordner ohne eigene Videodatei. Jellyfin 12
         // zeigt Staffeln z. B. unter „Neueste“; direkt abgespielt antwortet der
         // Server mit 400 („Season … has no media sources“) und der Player

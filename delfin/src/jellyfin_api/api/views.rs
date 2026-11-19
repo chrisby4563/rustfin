@@ -29,7 +29,7 @@ impl ApiClient {
 
         let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
 
-        let items = res.items.context("No items returned")?;
+        let items = res.items;
         let total_record_count = res
             .total_record_count
             .context("Total record count not returned")?;
@@ -73,7 +73,7 @@ impl ApiClient {
 
         let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
 
-        let items = res.items.context("No items returned")?;
+        let items = res.items;
         let total_record_count = res
             .total_record_count
             .context("Total record count not returned")?;

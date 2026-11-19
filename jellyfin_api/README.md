@@ -1,16 +1,8 @@
-# jellyfin-api-rust
+# jellyfin_api (Delfin-Fork)
 
-A Rust client for the Jellyfin API, auto-generated from Jellyfin's OpenAPI
-specification.
+Rust-Datentypen für die Jellyfin-API, erzeugt mit progenitor aus der
+OpenAPI-Beschreibung des Servers. Aktueller Stand: **Jellyfin 12.4.0**.
+Ursprung: codeberg.org/avery42/jellyfin-api-rust (10.9.2).
 
-Currently, this package only exposes models from the Jellyfin API. The tool used
-to generate the client doesn't support generating a lot of the API methods.
-
-## Generating the bindings
-
-Dependencies:
-
-- cargo-progenitor fork: `cargo install cargo-progenitor --git https://github.com/coolavery/progenitor.git`
-- jq
-
-To generate the bindings, run the generation script: `./generate`
+Neu erzeugen: `./regenerate <server-url> <pfad-zu-cargo-progenitor>`
+(Ablauf und Nacharbeiten stehen im Skript).

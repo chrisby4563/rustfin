@@ -18,8 +18,8 @@ impl ApiClient {
         };
 
         let image_tag = match images_tags.get("Primary") {
-            Some(tag) => tag,
-            None => bail!("Missing image tag"),
+            Some(Some(tag)) => tag,
+            _ => bail!("Missing image tag"),
         };
 
         let mut url = self.root.join(&format!("Items/{item_id}/Images/Primary"))?;
@@ -48,8 +48,8 @@ impl ApiClient {
         };
 
         let (url_thumb_or_backdrop, image_tag) = match images_tags.get("Thumb") {
-            Some(image_tag) => ("Thumb", image_tag),
-            None => (
+            Some(Some(image_tag)) => ("Thumb", image_tag),
+            _ => (
                 "Backdrop",
                 match item.backdrop_image_tags.as_ref().map(|b| b.first()) {
                     Some(Some(image_tag)) => image_tag,
@@ -91,7 +91,7 @@ impl ApiClient {
                 match item.parent_backdrop_image_tags.as_ref().map(|v| v.first()) {
                     Some(Some(image_tag)) => image_tag,
                     _ => {
-                        if let Some(Some(primary_tag)) =
+                        if let Some(Some(Some(primary_tag))) =
                             item.image_tags.as_ref().map(|i| i.get("Primary"))
                         {
                             primary_tag

@@ -163,9 +163,15 @@ gboolean process_events(gpointer data) {
       done = 1;
       break;
 
-    case MPV_EVENT_LOG_MESSAGE:
-      // printf("mpv log: %s\n", ((mpv_event_log_message *)event->data)->text);
+    case MPV_EVENT_LOG_MESSAGE: {
+      // Warnungen und Infos von mpv auf stderr (z. B. verworfene Bilder,
+      // Pufferleer, Hardware-Dekodierung). Debug-Meldungen bleiben stumm.
+      mpv_event_log_message *msg = (mpv_event_log_message *)event->data;
+      if (msg->log_level <= MPV_LOG_LEVEL_INFO) {
+        fprintf(stderr, "mpv [%s] %s: %s", msg->level, msg->prefix, msg->text);
+      }
       break;
+    }
 
     case MPV_EVENT_END_FILE:
       // TODO: might want to include reason (eof, error, redirect, etc.)
@@ -329,7 +335,7 @@ static void realize(GtkGLArea *area, gpointer data) {
   mpv_ctx->handle = mpv_create();
   mpv_set_property_string(mpv_ctx->handle, "vo", "libmpv");
   mpv_initialize(mpv_ctx->handle);
-  mpv_request_log_messages(mpv_ctx->handle, "debug");
+  mpv_request_log_messages(mpv_ctx->handle, "info");
 
   widget->mpv_ctx = mpv_ctx;
 

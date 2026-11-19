@@ -137,9 +137,10 @@ impl DurationDisplay {
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, glib::Variant)]
 pub enum Deinterlace {
+    /// mpv schaltet nur bei Halbbild-Material (z. B. 1080i-Blu-rays) ein.
+    #[default]
     Auto,
     On,
-    #[default]
     Off,
 }
 

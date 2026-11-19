@@ -14,7 +14,7 @@ impl ApiClient {
 
         let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
 
-        res.items.ok_or(anyhow::anyhow!("No items returned"))
+        Ok(res.items)
     }
 }
 
@@ -70,6 +70,6 @@ impl ApiClient {
 
         let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
 
-        res.items.ok_or(anyhow::anyhow!("No items returned"))
+        Ok(res.items)
     }
 }

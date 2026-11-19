@@ -48,7 +48,7 @@ async fn load_native_trickplay(
         .and_then(|trickplay| {
             trickplay
                 .get(&item_id.simple().to_string())
-                .map(ToOwned::to_owned)
+                .and_then(|widths| widths.to_owned())
         })
         // Use the first available width width
         .and_then(|trickplay| trickplay.into_iter().next())?;

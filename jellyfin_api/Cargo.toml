@@ -1,9 +1,9 @@
 [package]
 name = "jellyfin_api"
-version = "10.9.2-1"
+version = "12.4.0-1"
 edition = "2021"
 license = "Unlicense"
-description = "Incomplete Rust client for the Jellyfin API."
+description = "Rust types for the Jellyfin 12.4 API (regenerated from the server OpenAPI spec)."
 homepage = "https://codeberg.org/avery42/jellyfin-api-rust"
 repository = "https://codeberg.org/avery42/jellyfin-api-rust"
 readme = "README.md"

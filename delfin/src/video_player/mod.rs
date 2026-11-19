@@ -378,8 +378,11 @@ impl Component for VideoPlayer {
                 self.hiding.store(false, atomic::Ordering::Relaxed);
 
                 self.media = Some(*item.clone());
-                let url = api_client.get_stream_url(&item.id.unwrap());
-                info!("Playing video from URL: {url}");
+                let url = api_client.get_stream_url_for(&item);
+                info!(
+                    "Playing video from URL: {}",
+                    url.split("&ApiKey=").next().unwrap_or_default()
+                );
                 self.backend.borrow_mut().play_uri(&url);
                 VIDEO_PLAYER_MENU_BROKER.send(VideoPlayerMenuInput::SetStreamURL(url));
 

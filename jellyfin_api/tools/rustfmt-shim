@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+if [[ "$1" == "--version" || "$1" == "-V" ]]; then
+  echo "rustfmt 1.8.0-nightly (shim)"; exit 0
+fi
+args=(); for a in "$@"; do [[ "$a" == "--unstable-features" || "$a" == --config-path=* ]] || args+=("$a"); done
+exec rustfmt --edition 2021 "${args[@]}" 2>/dev/null

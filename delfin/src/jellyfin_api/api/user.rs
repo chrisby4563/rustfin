@@ -97,7 +97,9 @@ pub async fn authenticate_by_pin(
             get_auth_header(device_id, None),
         )
         .json(&QuickConnectDto {
-            secret: secret.into(),
+            secret: secret
+                .try_into()
+                .map_err(|err| anyhow::anyhow!("Invalid Quick Connect secret: {err}"))?,
         })
         .send()
         .await?

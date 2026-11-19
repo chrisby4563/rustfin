@@ -69,7 +69,7 @@ impl ApiClient {
 
         let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
 
-        res.items.ok_or(anyhow::anyhow!("No items returned"))
+        Ok(res.items)
     }
 
     // TODO: this can probably be combined with get_latest_media
@@ -93,6 +93,6 @@ impl ApiClient {
 
         let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
 
-        res.items.ok_or(anyhow::anyhow!("No items returned"))
+        Ok(res.items)
     }
 }
