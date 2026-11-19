@@ -64,3 +64,5 @@ vp-next-up-action =
 vp-playback-speed-tooltip = Wiedergabegeschwindigkeit
 vp-playback-speed-normal = Normal
 vp-playback-speed-toast = Abspielgeschwindigkeit: { $speed }x
+vp-chapters-tooltip = Kapitel
+vp-chapter = Kapitel

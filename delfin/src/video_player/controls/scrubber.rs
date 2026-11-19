@@ -384,7 +384,7 @@ impl Scrubber {
     }
 }
 
-fn seconds_to_timestamp(seconds: usize) -> String {
+pub(super) fn seconds_to_timestamp(seconds: usize) -> String {
     let Some(time) = TimeDelta::try_seconds(seconds as i64) else {
         warn!("Could not convert seconds to TimeDelta");
         return String::new();

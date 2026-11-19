@@ -160,6 +160,23 @@ impl ApiClient {
         Ok(url.to_string())
     }
 
+    /// Vorschaubild eines Kapitels (Index wie in `item.chapters`).
+    pub fn get_chapter_image_url(
+        &self,
+        item_id: &uuid::Uuid,
+        index: usize,
+        tag: &str,
+    ) -> Result<String> {
+        let mut url = self
+            .root
+            .join(&format!("Items/{item_id}/Images/Chapter/{index}"))?;
+        url.query_pairs_mut()
+            .append_pair("tag", tag)
+            .append_pair("maxWidth", "320")
+            .append_pair("quality", "80");
+        Ok(url.to_string())
+    }
+
     /// Porträt einer Person (Besetzung), quadratisch beschnitten passt es in
     /// einen runden Avatar.
     pub fn get_person_image_url(&self, person_id: &uuid::Uuid, tag: &str) -> Result<String> {

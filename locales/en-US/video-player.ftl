@@ -79,3 +79,5 @@ vp-menu-debug-copy-stream-url-toast =
     .success = Stream URL copied to clipboard
     .fail = Failed to copy stream URL to clipboard
 vp-menu-debug-mpv-props = MPV Properties
+vp-chapters-tooltip = Chapters
+vp-chapter = Chapter

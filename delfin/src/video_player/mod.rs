@@ -46,6 +46,7 @@ use crate::video_player::next_up::{NextUp, NEXT_UP_VISIBILE};
 use self::backends::{PlayerState, VideoPlayerBackend};
 use self::controls::fullscreen::{FullscreenInput, FULLSCREEN_BROKER};
 use self::controls::play_pause::{PlayPauseInput, PLAY_PAUSE_BROKER};
+use self::controls::chapters::{ChaptersInput, CHAPTERS_BROKER};
 use self::controls::scrubber::{ScrubberInput, SCRUBBER_BROKER};
 use self::controls::volume::{VolumeInput, VOLUME_BROKER};
 use self::controls::{VideoPlayerControls, VideoPlayerControlsInput};
@@ -450,6 +451,7 @@ impl Component for VideoPlayer {
 
                 self.fetch_next_prev(&sender, &item);
 
+                CHAPTERS_BROKER.send(ChaptersInput::Reset);
                 if let Some(item_id) = item.id {
                     relm4::spawn({
                         let api_client = api_client.clone();
@@ -461,6 +463,11 @@ impl Component for VideoPlayer {
                             };
                             fetch_trickplay(&api_client, &sender, &item);
                             if let Some(chapters) = item.chapters {
+                                CHAPTERS_BROKER.send(ChaptersInput::Set {
+                                    api_client: api_client.clone(),
+                                    item_id,
+                                    chapters: chapters.clone(),
+                                });
                                 SCRUBBER_BROKER.send(ScrubberInput::DisplayChapters(chapters));
                             }
                         }
