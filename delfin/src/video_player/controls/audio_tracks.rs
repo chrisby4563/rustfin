@@ -1,4 +1,8 @@
-use std::{cell::RefCell, sync::Arc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+    sync::Arc,
+};
 
 use gtk::prelude::*;
 use relm4::{
@@ -7,9 +11,16 @@ use relm4::{
     Component, ComponentParts,
 };
 
+use jellyfin_api::types::{BaseItemDto, MediaStreamType};
+use tracing::warn;
+
 use crate::{
+    jellyfin_api::api_client::ApiClient,
     tr,
-    video_player::backends::{AudioTrack, VideoPlayerBackend},
+    video_player::{
+        backends::{AudioTrack, VideoPlayerBackend},
+        VideoPlayerInput, VIDEO_PLAYER_BROKER,
+    },
 };
 
 relm4::new_action_group!(AudioTracksActionGroup, "audio_tracks_actions");
@@ -26,12 +37,26 @@ pub struct AudioTracks {
     video_player: Arc<RefCell<dyn VideoPlayerBackend>>,
     menu: gio::Menu,
     audio_tracks_available: bool,
+    /// Vom Server umgewandelter Stream: Spuren kommen vom Server, ein Wechsel
+    /// fordert den Stream neu an (statt mpv-Spur umzuschalten).
+    server_mode: Rc<Cell<bool>>,
+    /// Beim Setzen der Vorauswahl keinen Spurwechsel auslösen.
+    suppress_switch: Rc<Cell<bool>>,
 }
 
 #[derive(Debug)]
 pub enum AudioTracksInput {
-    Reset,
+    Reset {
+        api_client: Arc<ApiClient>,
+        item: Box<BaseItemDto>,
+    },
     AudioTracksUpdated(Vec<AudioTrack>),
+}
+
+#[derive(Debug)]
+pub enum AudioTracksCommandOutput {
+    /// (Server-Index, Name) und die vorausgewählte Spur.
+    ServerTracksLoaded(Vec<(i32, String)>, Option<i32>),
 }
 
 #[relm4::component(pub)]
@@ -39,7 +64,7 @@ impl Component for AudioTracks {
     type Init = Arc<RefCell<dyn VideoPlayerBackend>>;
     type Input = AudioTracksInput;
     type Output = ();
-    type CommandOutput = ();
+    type CommandOutput = AudioTracksCommandOutput;
 
     view! {
         gtk::MenuButton {
@@ -62,6 +87,8 @@ impl Component for AudioTracks {
             video_player,
             menu: gio::Menu::new(),
             audio_tracks_available: false,
+            server_mode: Rc::new(Cell::new(false)),
+            suppress_switch: Rc::new(Cell::new(false)),
         };
 
         model
@@ -76,11 +103,23 @@ impl Component for AudioTracks {
         let selected_audio_track_action: RelmAction<SelectedAudioTrackAction> =
             RelmAction::new_stateful_with_target_value(&None, {
                 let video_player = model.video_player.clone();
+                let server_mode = model.server_mode.clone();
+                let suppress_switch = model.suppress_switch.clone();
                 move |_, state, value: Option<i32>| {
+                    let changed = *state != value;
                     *state = value;
-                    video_player
-                        .borrow()
-                        .set_audio_track(value.map(|id| id as usize));
+                    if server_mode.get() {
+                        if suppress_switch.get() {
+                            return;
+                        }
+                        if let (true, Some(index)) = (changed, value) {
+                            VIDEO_PLAYER_BROKER.send(VideoPlayerInput::SwitchServerAudioTrack(index));
+                        }
+                    } else {
+                        video_player
+                            .borrow()
+                            .set_audio_track(value.map(|id| id as usize));
+                    }
                 }
             });
 
@@ -91,6 +130,47 @@ impl Component for AudioTracks {
         ComponentParts { model, widgets }
     }
 
+    fn update_cmd(
+        &mut self,
+        message: Self::CommandOutput,
+        _sender: relm4::ComponentSender<Self>,
+        root: &Self::Root,
+    ) {
+        match message {
+            AudioTracksCommandOutput::ServerTracksLoaded(tracks, default) => {
+                if tracks.len() < 2 {
+                    return;
+                }
+                let menu = gio::Menu::new();
+                for (index, name) in &tracks {
+                    menu.append_item(
+                        &RelmAction::<SelectedAudioTrackAction>::to_menu_item_with_target_value(
+                            name,
+                            &Some(*index),
+                        ),
+                    );
+                }
+                self.menu.remove_all();
+                self.menu
+                    .append_section(Some(tr!("vp-audio-track-menu")), &menu);
+                self.audio_tracks_available = true;
+
+                // Vorauswahl setzen, ohne einen Wechsel auszulösen.
+                let selected = default.or(tracks.first().map(|(index, _)| *index));
+                self.suppress_switch.set(true);
+                let _ = root.activate_action(
+                    &format!(
+                        "{}.{}",
+                        AudioTracksActionGroup::NAME,
+                        SelectedAudioTrackAction::NAME
+                    ),
+                    Some(&selected.to_variant()),
+                );
+                self.suppress_switch.set(false);
+            }
+        }
+    }
+
     fn update_with_view(
         &mut self,
         widgets: &mut Self::Widgets,
@@ -99,11 +179,41 @@ impl Component for AudioTracks {
         root: &Self::Root,
     ) {
         match message {
-            AudioTracksInput::Reset => {
+            AudioTracksInput::Reset { api_client, item } => {
                 self.audio_tracks_available = false;
+                self.menu.remove_all();
+                let server_mode = ApiClient::is_server_transcoded(&item);
+                self.server_mode.set(server_mode);
+                if let (true, Some(item_id)) = (server_mode, item.id) {
+                    sender.oneshot_command(async move {
+                        let info = match api_client.get_playback_info(&item_id).await {
+                            Ok(info) => info,
+                            Err(err) => {
+                                warn!("Error getting audio streams: {err}");
+                                return AudioTracksCommandOutput::ServerTracksLoaded(vec![], None);
+                            }
+                        };
+                        let source = info.media_sources.into_iter().next();
+                        let default = source.as_ref().and_then(|s| s.default_audio_stream_index);
+                        let tracks = source
+                            .and_then(|s| s.media_streams)
+                            .unwrap_or_default()
+                            .into_iter()
+                            .filter(|stream| stream.type_ == Some(MediaStreamType::Audio))
+                            .filter_map(|stream| {
+                                let name = stream
+                                    .display_title
+                                    .or(stream.language)
+                                    .unwrap_or_else(|| format!("#{}", stream.index.unwrap_or(0)));
+                                Some((stream.index?, name))
+                            })
+                            .collect();
+                        AudioTracksCommandOutput::ServerTracksLoaded(tracks, default)
+                    });
+                }
             }
             AudioTracksInput::AudioTracksUpdated(audio_tracks) => {
-                if audio_tracks.len() < 2 {
+                if audio_tracks.len() < 2 || self.server_mode.get() {
                     return;
                 }
 

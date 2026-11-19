@@ -97,6 +97,9 @@ pub enum VideoPlayerInput {
     MouseMove(f64, f64),
     ShowCursor,
     HideCursor,
+    /// Tonspur bei vom Server umgewandelten Streams wechseln (Index aus den
+    /// MediaStreams des Servers): Stream neu anfordern, an gleicher Stelle weiter.
+    SwitchServerAudioTrack(i32),
 }
 
 #[derive(Debug)]
@@ -369,6 +372,16 @@ impl Component for VideoPlayer {
             }
             VideoPlayerInput::ConfigUpdated(video_player_config) => {
                 self.configure_player(&video_player_config);
+            }
+            VideoPlayerInput::SwitchServerAudioTrack(index) => {
+                if let (Some(api_client), Some(media)) = (&self.api_client, &self.media) {
+                    let position = self.backend.borrow().position();
+                    let url = api_client.get_stream_url_with_audio(media, Some(index));
+                    info!("Switching server audio track to stream index {index} at {position}s");
+                    self.backend.borrow_mut().play_uri(&url);
+                    self.backend.borrow().seek_to(position);
+                    VIDEO_PLAYER_MENU_BROKER.send(VideoPlayerMenuInput::SetStreamURL(url));
+                }
             }
             VideoPlayerInput::PlayVideo(api_client, item) => {
                 self.inhibit_cookie = InhibitCookie::new().ok();

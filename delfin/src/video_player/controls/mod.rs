@@ -278,11 +278,14 @@ impl SimpleComponent for VideoPlayerControls {
                 self.show_controls = show_controls;
             }
             VideoPlayerControlsInput::SetPlaying { api_client, item } => {
+                if let Some(audio_tracks) = self.audio_tracks.get() {
+                    audio_tracks.emit(AudioTracksInput::Reset {
+                        api_client: api_client.clone(),
+                        item: item.clone(),
+                    });
+                }
                 if let Some(subtitles) = self.subtitles.get() {
                     subtitles.emit(SubtitlesInput::Reset { api_client, item });
-                }
-                if let Some(audio_tracks) = self.audio_tracks.get() {
-                    audio_tracks.emit(AudioTracksInput::Reset);
                 }
             }
             VideoPlayerControlsInput::SetNextPreviousEpisodes(prev, next) => {

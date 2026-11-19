@@ -11,7 +11,10 @@ use uuid::Uuid;
 
 use crate::{
     globals::CONFIG,
-    jellyfin_api::{api::intro_skipper::IntroTimestamps, api_client::ApiClient},
+    jellyfin_api::{
+        api::intro_skipper::{SegmentKind, SkipSegment},
+        api_client::ApiClient,
+    },
     tr,
 };
 
@@ -20,22 +23,35 @@ use super::backends::VideoPlayerBackend;
 #[derive(Debug)]
 enum State {
     Hidden,
-    Visible,
-    AutoSkipCountdown(usize),
+    /// Knopf für den Abschnitt mit diesem Index.
+    Visible(usize),
+    AutoSkipCountdown(usize, usize),
 }
 
 impl State {
     fn visibility(&self) -> bool {
-        matches!(self, State::Visible | State::AutoSkipCountdown(_))
+        !matches!(self, State::Hidden)
     }
 
-    fn label(&self) -> String {
+    fn label(&self, segments: &[SkipSegment]) -> String {
         match self {
-            Self::Visible => tr!("vp-skip-intro.manual").to_string(),
-            Self::AutoSkipCountdown(seconds) => {
+            Self::Visible(index) => match segments.get(*index).map(|s| s.kind) {
+                Some(SegmentKind::Recap) => tr!("vp-skip-intro.manual-recap").to_string(),
+                Some(SegmentKind::Outro) => tr!("vp-skip-intro.manual-outro").to_string(),
+                Some(SegmentKind::Preview) => tr!("vp-skip-intro.manual-preview").to_string(),
+                _ => tr!("vp-skip-intro.manual").to_string(),
+            },
+            Self::AutoSkipCountdown(_, seconds) => {
                 tr!("vp-skip-intro.auto", { "seconds" => seconds }).to_string()
             }
             State::Hidden => String::default(),
+        }
+    }
+
+    fn segment_index(&self) -> Option<usize> {
+        match self {
+            Self::Visible(index) | Self::AutoSkipCountdown(index, _) => Some(*index),
+            Self::Hidden => None,
         }
     }
 }
@@ -43,8 +59,10 @@ impl State {
 #[derive(Debug)]
 pub(crate) struct SkipIntro {
     video_player: Arc<RefCell<dyn VideoPlayerBackend>>,
-    intro_timestamps: Option<IntroTimestamps>,
+    segments: Vec<SkipSegment>,
     state: State,
+    /// Intro dieser Folge schon automatisch übersprungen (danach nur noch Knopf,
+    /// falls man zurückspult, um es doch zu sehen).
     already_skipped: bool,
     enabled: bool,
     auto_skip: bool,
@@ -70,7 +88,7 @@ impl AsyncComponent for SkipIntro {
             #[watch]
             set_visible: model.state.visibility(),
             #[watch]
-            set_label: model.state.label().as_ref(),
+            set_label: model.state.label(&model.segments).as_ref(),
             add_css_class: "opaque",
             set_margin_bottom: 12,
             set_halign: gtk::Align::End,
@@ -97,7 +115,7 @@ impl AsyncComponent for SkipIntro {
 
         let model = SkipIntro {
             video_player,
-            intro_timestamps: None,
+            segments: Vec::new(),
             state: State::Hidden,
             already_skipped: false,
             enabled: CONFIG.read().video_player.intro_skipper,
@@ -119,58 +137,63 @@ impl AsyncComponent for SkipIntro {
     ) {
         match message {
             SkipIntroInput::Load(id, api_client) => {
-                self.intro_timestamps = match api_client.get_intro_timestamps(&id).await {
-                    Ok(intro_timestamps) => intro_timestamps,
+                self.segments = match api_client.get_skip_segments(&id).await {
+                    Ok(segments) => segments,
                     Err(err) => {
-                        warn!("Error getting intro timestamps for {id}: {err:#?}");
-                        None
+                        warn!("Error getting media segments for {id}: {err:#?}");
+                        Vec::new()
                     }
                 };
                 self.already_skipped = false;
+                self.state = State::Hidden;
             }
-            SkipIntroInput::PositionUpdate(position) => 'msg_block: {
-                let (true, Some(intro_timestamps)) = (self.enabled, &self.intro_timestamps) else {
+            SkipIntroInput::PositionUpdate(position) => {
+                let position = position as f32;
+                if !self.enabled {
                     self.state = State::Hidden;
-                    break 'msg_block;
-                };
+                    return;
+                }
 
-                self.state = match (self.auto_skip, self.already_skipped) {
-                    // Auto skip and hide button
-                    (true, false)
-                        if intro_timestamps.range_intro().contains(&(position as f32)) =>
+                // Automatisch nur das Intro, und nur einmal je Folge.
+                if self.auto_skip && !self.already_skipped {
+                    if let Some((index, intro)) = self
+                        .segments
+                        .iter()
+                        .enumerate()
+                        .find(|(_, s)| s.kind == SegmentKind::Intro)
                     {
-                        self.already_skipped = true;
-                        self.video_player
-                            .borrow()
-                            .seek_to(intro_timestamps.intro_end as usize);
-
-                        State::Hidden
+                        if intro.range().contains(&position) {
+                            self.already_skipped = true;
+                            self.video_player.borrow().seek_to(intro.end as usize);
+                            self.state = State::Hidden;
+                            return;
+                        }
+                        if intro.range_auto_skip_show().contains(&position) {
+                            let seconds = (intro.start - position).ceil().max(1.0) as usize;
+                            self.state = State::AutoSkipCountdown(index, seconds);
+                            return;
+                        }
                     }
+                }
 
-                    // User has auto skip disabled, OR user has auto skip enabled and intro was
-                    // already skipped, in which case we show a manual skip button, in case the
-                    // user rewound so they could watch the intro
-                    (false, _) | (true, true)
-                        if intro_timestamps.range_show().contains(&(position as f32)) =>
-                    {
-                        State::Visible
-                    }
-
-                    // Show auto skip countdown
-                    (true, _)
-                        if intro_timestamps
-                            .range_auto_skip_show()
-                            .contains(&(position as f32)) =>
-                    {
-                        State::AutoSkipCountdown((intro_timestamps.intro_start as usize) - position)
-                    }
-
-                    _ => State::Hidden,
-                };
+                self.state = self
+                    .segments
+                    .iter()
+                    .position(|s| s.range_show().contains(&position))
+                    .map(State::Visible)
+                    .unwrap_or(State::Hidden);
             }
             SkipIntroInput::SkipIntro => {
-                if let Some(intro_end) = self.intro_timestamps.as_ref().map(|ts| ts.intro_end) {
-                    self.video_player.borrow().seek_to(intro_end as usize);
+                if let Some(segment) = self
+                    .state
+                    .segment_index()
+                    .and_then(|index| self.segments.get(index))
+                {
+                    if segment.kind == SegmentKind::Intro {
+                        self.already_skipped = true;
+                    }
+                    self.video_player.borrow().seek_to(segment.end as usize);
+                    self.state = State::Hidden;
                 }
             }
             SkipIntroInput::ConfigUpdated(enabled, auto_skip) => {

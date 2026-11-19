@@ -35,6 +35,9 @@ vp-skip-forwards-backwards-tooltip =
     }
 vp-skip-intro =
     .manual = Skip Intro
+    .manual-recap = Skip Recap
+    .manual-outro = Skip Credits
+    .manual-preview = Skip Preview
     .auto = Skipping intro in { $seconds }…
 vp-audio-track-tooltip = Audio Tracks
 vp-audio-track-menu = Audio Track
