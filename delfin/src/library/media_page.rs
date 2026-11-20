@@ -42,6 +42,8 @@ pub struct MediaPageInit<F, C: Component> {
     pub header_center: Option<gtk::Widget>,
     /// Unter der Titelzeile (z. B. Buchstabenleiste).
     pub header_below: Option<gtk::Widget>,
+    /// Rechts neben dem Raster (z. B. senkrechte Buchstabenleiste).
+    pub side_end: Option<gtk::Widget>,
 }
 
 #[derive(Debug)]
@@ -190,6 +192,7 @@ where
             media_tile_display,
             header_center,
             header_below,
+            side_end,
         } = init;
 
         let (tx, mut rx) = mpsc::unbounded_channel();
@@ -213,7 +216,9 @@ where
             media_tile_display: media_tile_display.unwrap_or(MediaTileDisplay::Wide),
             state: FetcherState::Empty,
             count: None,
-            has_header_extra: header_center.is_some() || header_below.is_some(),
+            has_header_extra: header_center.is_some()
+                || header_below.is_some()
+                || side_end.is_some(),
         };
 
         let widgets = view_output!();
@@ -223,6 +228,15 @@ where
         }
         if let Some(below) = &header_below {
             widgets.header_area.append(below);
+        }
+        // Seitenleiste rechts: Raster und Leiste nebeneinander.
+        if let Some(side) = &side_end {
+            let body = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+            body.set_vexpand(true);
+            root.remove(&widgets.scroll);
+            body.append(&widgets.scroll);
+            body.append(side);
+            root.append(&body);
         }
 
         ComponentParts { model, widgets }

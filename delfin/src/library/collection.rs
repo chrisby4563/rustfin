@@ -101,11 +101,8 @@ impl Component for Collection {
         let direction_button = gtk::Button::from_icon_name(direction_icon(query.descending));
         let filter_bar: gtk::Widget =
             filter_bar(&sender, &genre_dropdown, &direction_button).upcast();
-        // Buchstabenleiste, darunter Linie zum Inhalt.
-        let letter_block = gtk::Box::new(gtk::Orientation::Vertical, 0);
-        letter_block.append(&letter_bar(&sender));
-        letter_block.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-        let letter_block: gtk::Widget = letter_block.upcast();
+        // Buchstabenleiste senkrecht am rechten Rand.
+        let letter_block: gtk::Widget = letter_bar(&sender).upcast();
 
         let model = Collection {
             query: query.clone(),
@@ -291,8 +288,9 @@ fn filter_bar(
         .spacing(8)
         .margin_start(12)
         .margin_end(12)
-        .halign(gtk::Align::Center)
+        .halign(gtk::Align::End)
         .valign(gtk::Align::Center)
+        .css_classes(["pill-bar"])
         .build();
 
     let sort_names: Vec<String> = CollectionSort::ALL
@@ -322,15 +320,14 @@ fn filter_bar(
     });
     sort_group.append(direction_button);
     bar.append(&sort_group);
-    bar.append(&group_separator());
 
     let unplayed = gtk::ToggleButton::with_label(tr!("library-filter-unplayed"));
     unplayed.connect_toggled({
         let sender = sender.clone();
         move |button| sender.input(CollectionInput::SetUnplayedOnly(button.is_active()))
     });
+    unplayed.add_css_class("filter-toggle");
     bar.append(&unplayed);
-    bar.append(&group_separator());
 
     genre_dropdown.set_visible(false);
     genre_dropdown.set_enable_search(true);
@@ -343,26 +340,15 @@ fn filter_bar(
     bar
 }
 
-fn group_separator() -> gtk::Separator {
-    let separator = gtk::Separator::new(gtk::Orientation::Vertical);
-    separator.set_margin_top(6);
-    separator.set_margin_bottom(6);
-    separator.set_margin_start(4);
-    separator.set_margin_end(4);
-    separator
-}
-
-/// Buchstabenleiste: Alle, #, A–Z.
+/// Buchstabenleiste senkrecht: Alle (∗), #, A–Z.
 fn letter_bar(sender: &ComponentSender<Collection>) -> gtk::ScrolledWindow {
-    let row = gtk::Box::builder()
-        .orientation(gtk::Orientation::Horizontal)
-        .spacing(2)
-        .halign(gtk::Align::Center)
-        .margin_start(6)
-        .margin_end(6)
+    let column = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(1)
+        .valign(gtk::Align::Start)
+        .margin_top(12)
+        .margin_bottom(12)
         .build();
-    // Hinterlegt als abgerundete Fläche, damit die Leiste als Einheit wirkt.
-    row.add_css_class("card");
 
     let letters: Vec<Option<char>> = std::iter::once(None)
         .chain(std::iter::once(Some('#')))
@@ -372,12 +358,15 @@ fn letter_bar(sender: &ComponentSender<Collection>) -> gtk::ScrolledWindow {
     let mut first: Option<gtk::ToggleButton> = None;
     for letter in letters {
         let label = match letter {
-            None => tr!("library-filter-all-letters").to_string(),
+            None => "∗".to_string(),
             Some(c) => c.to_string(),
         };
         let button = gtk::ToggleButton::with_label(&label);
         button.add_css_class("flat");
         button.add_css_class("letter-button");
+        if letter.is_none() {
+            button.set_tooltip_text(Some(tr!("library-filter-all-letters")));
+        }
         match &first {
             Some(group) => button.set_group(Some(group)),
             None => {
@@ -393,20 +382,16 @@ fn letter_bar(sender: &ComponentSender<Collection>) -> gtk::ScrolledWindow {
                 }
             }
         });
-        row.append(&button);
-        // Trennstriche nach „Alle“ und „#“: Sonderknöpfe vs. Buchstaben.
-        if matches!(letter, None | Some('#')) {
-            row.append(&group_separator());
-        }
+        column.append(&button);
     }
 
     gtk::ScrolledWindow::builder()
         .css_classes(["letter-scroller"])
-        .hscrollbar_policy(gtk::PolicyType::Automatic)
-        .vscrollbar_policy(gtk::PolicyType::Never)
-        .propagate_natural_height(true)
-        .margin_bottom(10)
-        .child(&row)
+        .hscrollbar_policy(gtk::PolicyType::Never)
+        .vscrollbar_policy(gtk::PolicyType::External)
+        .width_request(48)
+        .vexpand(true)
+        .child(&column)
         .build()
 }
 
@@ -427,9 +412,10 @@ fn new_media_page(
             api_client: api_client.clone(),
             fetcher,
             empty_component: None,
-            media_tile_display: Some(MediaTileDisplay::CoverLarge),
+            media_tile_display: Some(MediaTileDisplay::Cover),
             header_center: Some(filter_bar.clone()),
-            header_below: Some(letter_block.clone()),
+            header_below: None,
+            side_end: Some(letter_block.clone()),
         })
         .detach()
 }

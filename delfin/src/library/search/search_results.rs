@@ -83,6 +83,7 @@ impl Component for SearchResults {
                         media_tile_display: Some(MediaTileDisplay::CoverLarge),
                         header_center: None,
                         header_below: None,
+                    side_end: None,
                     })
                     .detach();
 
