@@ -35,11 +35,14 @@ pub struct SeasonsInit {
 #[derive(Debug)]
 pub enum SeasonsInput {
     SeasonActivated(usize),
+    MarkSeasonPlayed(usize, bool),
 }
 
 #[derive(Debug)]
 pub enum SeasonsOutput {
     SeasonSelected(usize),
+    /// Gesehen-Status geändert: Staffeln und Folgen neu laden.
+    Refresh,
 }
 
 #[relm4::component(pub async)]
@@ -147,6 +150,21 @@ impl AsyncComponent for Seasons {
                 self.episodes = Some(episodes);
 
                 sender.output(SeasonsOutput::SeasonSelected(index)).unwrap();
+            }
+            SeasonsInput::MarkSeasonPlayed(index, played) => {
+                let Some(season) = self.seasons.get(index) else {
+                    return;
+                };
+                match super::watched_state::toggle_watched(season, &self.api_client, played).await
+                {
+                    Ok(_) => {
+                        let _ = sender.output(SeasonsOutput::Refresh);
+                    }
+                    Err(err) => {
+                        crate::app::APP_BROKER
+                            .send(crate::app::AppInput::Toast(err.to_string(), None));
+                    }
+                }
             }
         }
     }

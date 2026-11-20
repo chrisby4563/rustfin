@@ -1,6 +1,7 @@
 mod audio_tracks;
 pub(crate) mod chapters;
 mod quality;
+mod mini_player;
 pub(super) mod fullscreen;
 pub(super) mod next_prev_episode;
 pub(super) mod play_pause;
@@ -47,6 +48,7 @@ use video_player_menu::{VideoPlayerMenu, VIDEO_PLAYER_MENU_BROKER};
 use self::{
     audio_tracks::{AudioTracks, AudioTracksInput},
     chapters::{Chapters, CHAPTERS_BROKER},
+    mini_player::MiniPlayerButton,
     quality::{Quality, QualityInput},
     fullscreen::Fullscreen,
     next_prev_episode::{NextPrevEpisode, NextPrevEpisodeInput},
@@ -75,6 +77,7 @@ pub struct VideoPlayerControls {
     audio_tracks: OnceCell<Controller<AudioTracks>>,
     chapters: OnceCell<Controller<Chapters>>,
     quality: OnceCell<Controller<Quality>>,
+    mini_player: OnceCell<Controller<MiniPlayerButton>>,
     fullscreen: Option<Controller<Fullscreen>>,
     playback_speed: OnceCell<Controller<PlaybackSpeed>>,
     menu: OnceCell<Controller<VideoPlayerMenu>>,
@@ -159,6 +162,7 @@ impl SimpleComponent for VideoPlayerControls {
             audio_tracks: OnceCell::new(),
             chapters: OnceCell::new(),
             quality: OnceCell::new(),
+            mini_player: OnceCell::new(),
             fullscreen: None,
             playback_speed: OnceCell::new(),
             menu: OnceCell::new(),
@@ -273,6 +277,10 @@ impl SimpleComponent for VideoPlayerControls {
             .detach();
         second_row.append(volume.widget());
         model.volume = Some(volume);
+
+        let mini_player = MiniPlayerButton::builder().launch(()).detach();
+        second_row.append(mini_player.widget());
+        let _ = model.mini_player.set(mini_player);
 
         let fullscreen = Fullscreen::builder()
             .launch_with_broker((), &FULLSCREEN_BROKER.read())

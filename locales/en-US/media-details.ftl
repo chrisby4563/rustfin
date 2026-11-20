@@ -42,3 +42,19 @@ media-details-cast = Cast & Crew
 media-details-cast-director = Director
 media-details-cast-writer = Writer
 media-details-version = Version
+media-details-season-mark-played = Mark season as watched
+media-details-season-mark-unplayed = Mark season as unwatched
+media-details-media-info = Media info
+media-details-media-info-video = Video
+media-details-media-info-audio = Audio
+media-details-media-info-subtitle = Subtitles
+media-details-media-info-file = File
+media-details-media-info-external = external
+media-details-media-info-audio-count = { $count ->
+    [one] 1 audio track
+   *[other] { $count } audio tracks
+}
+media-details-media-info-subtitle-count = { $count ->
+    [one] 1 subtitle
+   *[other] { $count } subtitles
+}

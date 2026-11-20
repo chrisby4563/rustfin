@@ -156,6 +156,13 @@ impl AsyncComponent for MediaDetailsContents {
 
         model.add_info(info_box, genre_label);
 
+        // Medieninfo nur bei Filmen (bei Serien gehört sie zur Folge).
+        if matches!(model.item.type_, Some(BaseItemKind::Movie)) {
+            if let Some(media_info) = super::media_info::media_info_widget(&model.item, false) {
+                container.append(&media_info);
+            }
+        }
+
         model.load_seasons(&sender, container);
 
         // Besetzung unter allem anderen, breiter als der Textblock.
@@ -295,6 +302,7 @@ impl From<SeasonsOutput> for MediaDetailsContentsInput {
             SeasonsOutput::SeasonSelected(selected_season_index) => {
                 MediaDetailsContentsInput::SetSelectedSeasonIndex(selected_season_index)
             }
+            SeasonsOutput::Refresh => MediaDetailsContentsInput::RefreshSeasons,
         }
     }
 }

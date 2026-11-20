@@ -25,11 +25,14 @@ pub(crate) struct Episode {
     media: BaseItemDto,
     api_client: Arc<ApiClient>,
     thumbnail: OnceCell<Controller<EpisodeThumbnail>>,
+    /// Medieninfo schon geladen (Popover am Info-Knopf).
+    info_loaded: bool,
 }
 
 #[derive(Debug)]
 pub(crate) enum EpisodeInput {
     ToggleWatched(bool),
+    LoadMediaInfo,
 }
 
 #[relm4::component(pub(crate) async)]
@@ -51,6 +54,27 @@ impl AsyncComponent for Episode {
                 overview.split_once('\n').unwrap_or((overview, "")).0
             } else { "" },
             set_subtitle_lines: 3,
+
+            // Medieninfo der Folge (Bild, Ton, Untertitel, Datei).
+            add_suffix = &gtk::MenuButton {
+                set_icon_name: "help-about-symbolic",
+                set_css_classes: &["image-button", "flat"],
+                set_valign: gtk::Align::Center,
+                set_tooltip: tr!("media-details-media-info"),
+
+                #[wrap(Some)]
+                #[name = "info_popover"]
+                set_popover = &gtk::Popover {
+                    set_width_request: 420,
+                    connect_show[sender] => move |_| {
+                        sender.input(EpisodeInput::LoadMediaInfo);
+                    },
+                    gtk::Spinner {
+                        set_spinning: true,
+                        set_margin_all: 12,
+                    },
+                },
+            },
 
             add_suffix = &gtk::ToggleButton {
                 set_icon_name: "eye-open-negative-filled",
@@ -85,6 +109,7 @@ impl AsyncComponent for Episode {
             media: media.clone(),
             api_client: api_client.clone(),
             thumbnail: OnceCell::new(),
+            info_loaded: false,
         };
 
         let title = match (&model.media.index_number, &model.media.name) {
@@ -105,13 +130,29 @@ impl AsyncComponent for Episode {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(
+    async fn update_with_view(
         &mut self,
+        widgets: &mut Self::Widgets,
         message: Self::Input,
-        _sender: AsyncComponentSender<Self>,
+        sender: AsyncComponentSender<Self>,
         _root: &Self::Root,
     ) {
         match message {
+            EpisodeInput::LoadMediaInfo => {
+                if self.info_loaded {
+                    return;
+                }
+                let Some(id) = self.media.id else {
+                    return;
+                };
+                let child: gtk::Widget = match self.api_client.get_item(&id).await {
+                    Ok(item) => super::media_info::media_info_widget(&item, true)
+                        .unwrap_or_else(|| gtk::Label::new(Some("–")).upcast()),
+                    Err(err) => gtk::Label::new(Some(&err.to_string())).upcast(),
+                };
+                widgets.info_popover.set_child(Some(&child));
+                self.info_loaded = true;
+            }
             EpisodeInput::ToggleWatched(watched) => {
                 self.media.user_data =
                     match toggle_watched(&self.media, &self.api_client, watched).await {
@@ -129,6 +170,7 @@ impl AsyncComponent for Episode {
                                 .to_owned(),
                                 None,
                             ));
+                            self.update_view(widgets, sender);
                             return;
                         }
                     };
@@ -136,6 +178,7 @@ impl AsyncComponent for Episode {
                 MEDIA_DETAILS_BROKER.send(MediaDetailsInput::UpdatePlayNext);
             }
         }
+        self.update_view(widgets, sender);
     }
 }
 

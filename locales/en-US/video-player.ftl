@@ -86,3 +86,5 @@ vp-quality-auto = Automatic
 vp-quality-auto-server = server 1080p
 vp-quality-auto-direct = direct
 vp-quality-original = Original (direct play)
+vp-mini-player-enter = Mini player (small, always on top)
+vp-mini-player-leave = Back to normal window

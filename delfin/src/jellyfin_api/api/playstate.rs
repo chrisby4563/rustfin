@@ -78,6 +78,21 @@ impl ApiClient {
         Ok(())
     }
 
+    /// Wiedergabeposition löschen: Titel verschwindet aus „Weiterschauen“,
+    /// ohne als gesehen zu gelten.
+    pub async fn clear_playback_position(&self, item_id: Uuid) -> Result<()> {
+        let mut url = self.root.join(&format!("UserItems/{item_id}/UserData"))?;
+        url.query_pairs_mut()
+            .append_pair("userId", &self.account.id.to_string());
+        self.client
+            .post(url)
+            .json(&serde_json::json!({ "PlaybackPositionTicks": 0 }))
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(())
+    }
+
     pub async fn mark_item_played(&self, item_id: Uuid) -> Result<UserItemDataDto> {
         let url = self
             .root

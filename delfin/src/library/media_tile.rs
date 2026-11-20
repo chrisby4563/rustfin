@@ -54,12 +54,20 @@ pub struct MediaTile {
     thumbnail: Option<Texture>,
     /// Bild wird noch geholt (Ladekreis). Danach ohne Bild: leere Kachel.
     loading: bool,
+    /// Kontextmenü (Rechtsklick / langes Drücken).
+    menu: gtk::Popover,
+    /// Aus „Weiterschauen“ entfernt: Kachel ausblenden.
+    hidden: bool,
 }
 
 #[derive(Debug)]
 pub enum MediaTileInput {
     Play,
     ShowDetails,
+    ShowMenu(f64, f64),
+    SetPlayed(bool),
+    RemoveFromResume,
+    GoToSeries,
 }
 
 #[derive(Debug)]
@@ -81,6 +89,8 @@ impl AsyncComponent for MediaTile {
             set_valign: gtk::Align::Start,
             set_spacing: 8,
             add_css_class: "media-tile",
+            #[watch]
+            set_visible: !model.hidden,
 
             #[name = "overlay"]
             gtk::Overlay {
@@ -105,6 +115,21 @@ impl AsyncComponent for MediaTile {
                 add_controller = gtk::GestureClick {
                     connect_released[sender] => move |_, _, _, _| {
                         sender.input(MediaTileInput::Play);
+                    },
+                },
+
+                // Rechtsklick und langes Drücken: Kontextmenü.
+                add_controller = gtk::GestureClick {
+                    set_button: gdk::BUTTON_SECONDARY,
+                    connect_pressed[sender] => move |gesture, _, x, y| {
+                        gesture.set_state(gtk::EventSequenceState::Claimed);
+                        sender.input(MediaTileInput::ShowMenu(x, y));
+                    },
+                },
+                add_controller = gtk::GestureLongPress {
+                    set_touch_only: true,
+                    connect_pressed[sender] => move |_, x, y| {
+                        sender.input(MediaTileInput::ShowMenu(x, y));
                     },
                 },
 
@@ -193,7 +218,9 @@ impl AsyncComponent for MediaTile {
 
                 add_overlay = &gtk::ProgressBar {
                     set_valign: gtk::Align::End,
-                    set_visible: model.media.user_data.as_ref().map(|user_data| user_data.played_percentage).is_some(),
+                    #[watch]
+                    set_visible: model.media.user_data.as_ref().and_then(|user_data| user_data.played_percentage).is_some_and(|p| p > 0.0),
+                    #[watch]
                     set_fraction?: model.media.user_data.as_ref()
                         .and_then(|user_data| user_data.played_percentage)
                         .map(|played_percentage| played_percentage / 100.0),
@@ -243,6 +270,14 @@ impl AsyncComponent for MediaTile {
         let item_label = model.get_item_label();
 
         let widgets = view_output!();
+        model.menu.set_parent(&widgets.overlay);
+        model.menu.set_has_arrow(false);
+        model.menu.set_position(gtk::PositionType::Bottom);
+        // Popover hängt am Overlay und muss vor dessen Abbau gelöst werden.
+        widgets.overlay.connect_destroy({
+            let menu = model.menu.clone();
+            move |_| menu.unparent()
+        });
 
         sender.oneshot_command({
             let media = model.media.clone();
@@ -258,10 +293,72 @@ impl AsyncComponent for MediaTile {
     async fn update(
         &mut self,
         message: Self::Input,
-        _sender: AsyncComponentSender<Self>,
+        sender: AsyncComponentSender<Self>,
         _root: &Self::Root,
     ) {
         match message {
+            MediaTileInput::ShowMenu(x, y) => {
+                if matches!(self.media.type_, Some(BaseItemKind::CollectionFolder)) {
+                    return;
+                }
+                self.build_menu(&sender);
+                self.menu
+                    .set_pointing_to(Some(&gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+                self.menu.popup();
+            }
+            MediaTileInput::SetPlayed(played) => {
+                self.menu.popdown();
+                match crate::media_details::watched_state::toggle_watched(
+                    &self.media,
+                    &self.api_client,
+                    played,
+                )
+                .await
+                {
+                    Ok(user_data) => {
+                        self.media.user_data = Some(user_data);
+                        let message = if played {
+                            tr!("library-tile-marked-played")
+                        } else {
+                            tr!("library-tile-marked-unplayed")
+                        };
+                        APP_BROKER.send(AppInput::Toast(message.to_string(), Some(2)));
+                    }
+                    Err(err) => {
+                        warn!("Error marking item played={played}: {err}");
+                        APP_BROKER.send(AppInput::Toast(err.to_string(), None));
+                    }
+                }
+            }
+            MediaTileInput::RemoveFromResume => {
+                self.menu.popdown();
+                let Some(item_id) = self.media.id else {
+                    return;
+                };
+                match self.api_client.clear_playback_position(item_id).await {
+                    Ok(()) => {
+                        self.hidden = true;
+                        APP_BROKER.send(AppInput::Toast(
+                            tr!("library-tile-removed-from-resume").to_string(),
+                            Some(2),
+                        ));
+                    }
+                    Err(err) => {
+                        warn!("Error removing item from resume: {err}");
+                        APP_BROKER.send(AppInput::Toast(err.to_string(), None));
+                    }
+                }
+            }
+            MediaTileInput::GoToSeries => {
+                self.menu.popdown();
+                let Some(series_id) = self.media.series_id else {
+                    return;
+                };
+                match self.api_client.get_item(&series_id).await {
+                    Ok(series) => APP_BROKER.send(AppInput::ShowDetails(series)),
+                    Err(err) => warn!("Error loading series {series_id}: {err}"),
+                }
+            }
             MediaTileInput::Play => {
                 match self.media.type_ {
                     Some(BaseItemKind::CollectionFolder) => {
@@ -326,7 +423,62 @@ impl MediaTile {
             api_client,
             thumbnail: None,
             loading: true,
+            menu: gtk::Popover::new(),
+            hidden: false,
         }
+    }
+
+    /// Menüeinträge passend zum Zustand neu aufbauen.
+    fn build_menu(&self, sender: &AsyncComponentSender<Self>) {
+        let list = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        let add = |label: &str, input: fn() -> MediaTileInput| {
+            let button = gtk::Button::builder()
+                .label(label)
+                .css_classes(["flat"])
+                .build();
+            if let Some(child) = button.child().and_downcast::<gtk::Label>() {
+                child.set_xalign(0.0);
+            }
+            button.connect_clicked({
+                let sender = sender.clone();
+                move |_| sender.input(input())
+            });
+            list.append(&button);
+        };
+
+        let user_data = self.media.user_data.as_ref();
+        let played = user_data.and_then(|d| d.played).unwrap_or(false);
+        let is_container = matches!(
+            self.media.type_,
+            Some(BaseItemKind::Series | BaseItemKind::Season)
+        );
+        if played {
+            add(tr!("library-tile-mark-unplayed"), || MediaTileInput::SetPlayed(false));
+        } else if is_container {
+            add(tr!("library-tile-mark-all-played"), || MediaTileInput::SetPlayed(true));
+        } else {
+            add(tr!("library-tile-mark-played"), || MediaTileInput::SetPlayed(true));
+        }
+        if is_container && !played && user_data.and_then(|d| d.played_percentage).is_some() {
+            add(tr!("library-tile-mark-unplayed"), || MediaTileInput::SetPlayed(false));
+        }
+        if user_data
+            .and_then(|d| d.playback_position_ticks)
+            .is_some_and(|ticks| ticks > 0)
+        {
+            add(tr!("library-tile-remove-from-resume"), || MediaTileInput::RemoveFromResume);
+        }
+        if self.media.series_id.is_some()
+            && matches!(
+                self.media.type_,
+                Some(BaseItemKind::Episode | BaseItemKind::Season)
+            )
+        {
+            add(tr!("library-tile-go-to-series"), || MediaTileInput::GoToSeries);
+        }
+        add(tr!("library-tile-details"), || MediaTileInput::ShowDetails);
+
+        self.menu.set_child(Some(&list));
     }
 
     fn get_item_label(&self) -> String {

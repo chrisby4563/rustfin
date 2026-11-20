@@ -523,6 +523,8 @@ impl Component for VideoPlayer {
             }
             VideoPlayerInput::StopPlayer => {
                 self.inhibit_cookie = None;
+                // Player verlassen: Fenster wieder normal.
+                crate::utils::mini_player::leave();
 
                 self.hiding.store(true, atomic::Ordering::Relaxed);
 
