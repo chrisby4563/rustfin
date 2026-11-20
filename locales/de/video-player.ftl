@@ -83,7 +83,7 @@ syncplay-participants = { $count ->
     [one] 1 Person
    *[other] { $count } Personen
 }
-syncplay-default-name = Delfin
+syncplay-default-name = Rustfin
 syncplay-create = Gruppe erstellen
 syncplay-joined = Gruppe „{ $name }“ beigetreten
 syncplay-user-joined = { $name } ist dazugekommen

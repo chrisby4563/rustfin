@@ -1,5 +1,5 @@
 project(
-  'delfin',
+  'rustfin',
   'rust',
   version: '0.4.8',
   # bad hack to compile libvideo-player-mpv
@@ -11,7 +11,7 @@ dependency('gtk4', version: '>= 4.0.0')
 dependency('libadwaita-1', version: '>= 1.4')
 dependency('mpv', version: '>= 2.1.0')
 
-base_id = 'cafe.avery.Delfin'
+base_id = 'io.github.chrisby4563.Rustfin'
 
 if get_option('profile') == 'dev'
   app_id = '@0@.@1@'.format(base_id, 'Devel')

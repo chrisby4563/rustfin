@@ -1,5 +1,5 @@
 [package]
-name = "delfin"
+name = "rustfin"
 version = "0.4.8"
 edition = "2021"
 rust-version = "1.75.0"

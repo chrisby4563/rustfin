@@ -1,62 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Copyright 2023 Avery -->
+<!-- Copyright 2023 Avery; Rustfin fork 2026 chrisby4563 -->
 <component type="desktop-application">
   <id>@APP_ID@</id>
 
-  <name>Delfin</name>
+  <name>Rustfin</name>
   <summary>Stream movies and TV shows from Jellyfin</summary>
 
   <description>
-    <p>Delfin is a native client for the Jellyfin media server. It features a fast and clean
-      interface to stream your media in an embedded MPV-based video player.</p>
+    <p>Rustfin is a native client for the Jellyfin media server, written in Rust with GTK4,
+      libadwaita and an embedded mpv video player. It is a fork of Delfin by Avery.</p>
 
-    <p>Delfin currently supports streaming movies and TV shows from your library. The video
-      player
-      supports the Intro Skipper plugin for skipping intros automatically, and the Jellyscrub
-      plugin
-      to show thumbnails while scrubbing through videos.</p>
+    <p>On top of Delfin it adds watching together (SyncPlay), a redesigned home page,
+      library and detail pages, filters and an A–Z bar, chapters, media info, multiple
+      versions, intro/recap/outro handling, deleting media, and the Jellyfin account
+      settings (languages, subtitles, home sections, Quick Connect).</p>
 
-    <p>This is an early release, you may run into bugs or missing features. Delfin does not come
-      with any media, you must connect to a Jellyfin server. Plugins must be installed and
-      configured on your server to be available from Delfin.</p>
+    <p>Rustfin does not come with any media; you must connect to a Jellyfin server.</p>
   </description>
-
-  <screenshots>
-    <screenshot type="default" environment="gnome:dark">
-      <caption>The library home page</caption>
-      <image type="source">https://delfin.avery.cafe/screenshots/flathub-1.png</image>
-    </screenshot>
-    <screenshot environment="gnome:dark">
-      <caption>Viewing details and episodes for a TV show</caption>
-      <image type="source">https://delfin.avery.cafe/screenshots/flathub-2.png</image>
-    </screenshot>
-    <screenshot environment="gnome:dark">
-      <caption>The video player</caption>
-      <image type="source">https://delfin.avery.cafe/screenshots/flathub-3.png</image>
-    </screenshot>
-    <screenshot environment="gnome">
-      <caption>The library home page</caption>
-      <image type="source">https://delfin.avery.cafe/screenshots/flathub-4.png</image>
-    </screenshot>
-    <screenshot environment="gnome">
-      <caption>Viewing details and episodes for a TV show</caption>
-      <image type="source">https://delfin.avery.cafe/screenshots/flathub-5.png</image>
-    </screenshot>
-  </screenshots>
 
   <metadata_license>CC-BY-SA-4.0</metadata_license>
   <project_license>GPL-3.0</project_license>
 
-  <url type="homepage">https://delfin.avery.cafe/</url>
-  <url type="bugtracker">https://codeberg.org/avery42/delfin/issues</url>
-  <url type="translate">https://translate.codeberg.org/projects/delfin/</url>
-  <url type="vcs-browser">https://codeberg.org/avery42/delfin</url>
+  <url type="homepage">https://github.com/chrisby4563/rustfin</url>
+  <url type="bugtracker">https://github.com/chrisby4563/rustfin/issues</url>
+  <url type="vcs-browser">https://github.com/chrisby4563/rustfin</url>
 
-  <developer id="avery.cafe">
-    <name>Avery</name>
+  <developer id="io.github.chrisby4563">
+    <name>chrisby4563</name>
   </developer>
-
-  <update_contact>delfin@avery.cafe</update_contact>
 
   <content_rating type="oars-1.1" />
 
@@ -81,7 +52,7 @@
   </categories>
 
   <provides>
-    <binary>delfin</binary>
+    <binary>rustfin</binary>
   </provides>
 
   <releases>

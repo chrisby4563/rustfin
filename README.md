@@ -1,52 +1,76 @@
-# Delfin [![status-badge](https://ci.codeberg.org/api/badges/12819/status.svg)](https://ci.codeberg.org/repos/12819)
+# Rustfin
 
-Stream movies and TV shows from Jellyfin.
+A native Jellyfin client for the Linux desktop, written in Rust with GTK4,
+libadwaita and an embedded mpv video player.
 
-Downloads are available at [delfin.avery.cafe](https://delfin.avery.cafe/).
+Rustfin is a fork of [Delfin](https://codeberg.org/avery42/delfin) by Avery.
+Many thanks for the solid foundation. It is not affiliated with the Delfin or
+Jellyfin projects; please report Rustfin issues here, not upstream.
 
-## Features/Roadmap
+## Features
 
-The following features are currently implemented or planned:
+Everything Delfin offers, plus:
 
-- Direct playback
-- Movie collections
-- TV show collections
-- [Jellyscrub](https://github.com/nicknsy/jellyscrub/) (scrubber thumbnails) plugin support
-- [Intro Skipper](https://github.com/ConfusedPolarBear/intro-skipper/) plugin support
-- *Music collections (planned)*
-- *Live TV (planned)*
-- *Library search (planned)*
-- *Syncplay (planned)*
-- *Transcoded playback (planned)*
+- **Watch together (SyncPlay)**: create or join groups, compatible with the
+  Jellyfin web client
+- **Redesigned interface**: home page with a rotating "continue watching" hero,
+  detail pages with backdrop, season pills and episode cards, library grid with
+  filter bar and A–Z letter bar, skeleton placeholders and fade-ins
+- **Library tools**: sorting, filters (unwatched, genres), search, mark as
+  watched, delete media (with confirmation)
+- **Playback**: chapters with thumbnails, multiple versions per item, resume or
+  start over, media info card (video, audio, subtitles, file, transcoding),
+  server-side audio track switching, quality selection, mini player (Hyprland)
+- **Segments**: skip or ask for intro, recap, outro and preview separately
+- **Jellyfin account settings**: audio and subtitle languages, subtitle mode,
+  home sections, next-up options, hidden libraries, password change and Quick
+  Connect, all stored on the server like in the web client
+- Colors follow the desktop theme (libadwaita named colors; live reload of the
+  Omarchy theme when present)
+- Access tokens are masked in all log output
 
-These features aren't planned at the moment (but maybe in the future):
+Not planned: music, live TV, server administration.
 
-- Managing your collections
-- Server administration
-- Book collections
+## Building
 
-## Development Setup
+Dependencies: Rust (stable), meson, GTK4, libadwaita ≥ 1.4, mpv ≥ 2.1,
+libepoxy, appstream.
 
-- Install pre-commit hooks with `pre-commit install`
-- `meson setup build && cd build`
-- `meson compile`
-- `./delfin/delfin`
+```sh
+meson setup _build -Dprofile=release
+ninja -C _build
+./_build/delfin/rustfin
+```
 
-### Mold Linker
+The [mold](https://github.com/rui314/mold/) linker is used automatically when
+available and speeds up builds considerably.
 
-Using the [mold](https://github.com/rui314/mold/) linker is recommended, as it
-can significantly speed up compile times. It will be used automatically when
-available.
+### Arch Linux
 
-## Translations
+```sh
+cd packaging/arch
+makepkg -si
+```
 
-Contributions to translations are welcome on [Weblate](https://translate.codeberg.org/projects/delfin/).
+### Migrating from Delfin
 
-<a href="https://translate.codeberg.org/engage/delfin/">
-    <img src="https://translate.codeberg.org/widget/delfin/open-graph.png" alt="Translation status" width="400px" />
-</a>
+On first start Rustfin copies `~/.config/delfin/config.toml` to
+`~/.config/rustfin/`, so your servers and accounts carry over. Delfin's file is
+left untouched.
 
-<br />
-<a href="https://translate.codeberg.org/engage/delfin/">
-    <img src="https://translate.codeberg.org/widget/delfin/multi-auto.svg" alt="Translation status" />
-</a>
+## Fonts
+
+The interface uses [Inter](https://rsms.me/inter/) and
+[Space Grotesk](https://fonts.google.com/specimen/Space+Grotesk) when
+installed and falls back to the system font otherwise.
+
+## Jellyfin API
+
+`jellyfin_api/` contains Rust types generated from the Jellyfin 12.4 OpenAPI
+description; see [jellyfin_api/README.md](jellyfin_api/README.md) for how to
+regenerate them.
+
+## License
+
+GPL-3.0-or-later, like Delfin. Original code © Avery and Delfin contributors;
+fork changes © chrisby4563.

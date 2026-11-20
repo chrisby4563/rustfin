@@ -1,7 +1,7 @@
 use std::{fmt::Debug, path::PathBuf};
 
 use anyhow::{Context, Result};
-use delfin::{
+use rustfin::{
     app::{App, APP_BROKER},
     meson_config::{APP_ID, BUILDDIR, RESOURCES_FILE},
 };
@@ -22,7 +22,7 @@ fn main() {
                 buf.timestamp(),
                 record.level(),
                 record.target(),
-                delfin::utils::redact::redact(&record.args().to_string())
+                rustfin::utils::redact::redact(&record.args().to_string())
             )
         })
         .init();
@@ -39,7 +39,7 @@ fn main() {
     load_css(&app);
     follow_desktop_theme();
     app.with_broker(&APP_BROKER).run::<App>(());
-    delfin::syncplay::leave_on_exit();
+    rustfin::syncplay::leave_on_exit();
 }
 
 fn load_css<T: Debug>(app: &RelmApp<T>) {

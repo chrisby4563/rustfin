@@ -14,7 +14,7 @@ const SUB_FORMATS: &[&str] = &["srt", "ass", "sub", "vtt"];
 /// Generates a device profile for direct play, similar to the one that Jellyfin Media Player uses.
 fn device_profile_direct_play() -> Result<DeviceProfile> {
     let profile = DeviceProfile::builder()
-        .name("Delfin Direct Play Profile".to_string())
+        .name("Rustfin Direct Play Profile".to_string())
         .max_streaming_bitrate(140000000)
         .direct_play_profiles(vec![
             DirectPlayProfile::builder()

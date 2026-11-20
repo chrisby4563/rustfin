@@ -128,7 +128,7 @@ impl Component for Library {
                             },
 
                             pack_start = &gtk::Label {
-                                set_label: "Delfin",
+                                set_label: "Rustfin",
                                 add_css_class: "header-brand",
                             },
 

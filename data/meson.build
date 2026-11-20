@@ -5,7 +5,7 @@ subdir('icons')
 ascli_exe = find_program('appstreamcli')
 
 metainfo_file = configure_file(
-  input: 'cafe.avery.Delfin.metainfo.xml.in',
+  input: 'io.github.chrisby4563.Rustfin.metainfo.xml.in',
   output: '@0@.metainfo.xml'.format(app_id),
   configuration: {
     'APP_ID': app_id,
@@ -28,7 +28,7 @@ install_data(
 )
 
 desktop_file = configure_file(
-  input: 'cafe.avery.Delfin.desktop.in',
+  input: 'io.github.chrisby4563.Rustfin.desktop.in',
   output: '@0@.desktop'.format(app_id),
   configuration: {
     'APP_ID': app_id,
@@ -41,7 +41,7 @@ install_data(
 )
 
 resources_file = configure_file(
-  input: 'cafe.avery.Delfin.gresource.xml.in',
+  input: 'io.github.chrisby4563.Rustfin.gresource.xml.in',
   output: '@0@.gresource.xml'.format(app_id),
   configuration: {
     'APP_ID': app_id,

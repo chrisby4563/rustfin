@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm clang git gtk4 libadwaita meson mold mpv ninja rustup appstream
+          rustup default stable
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Build
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          meson setup build
+          meson compile -C build
+      - name: Test
+        run: MESON_BUILD_ROOT="$PWD/build" cargo test --workspace --exclude jellyfin_api

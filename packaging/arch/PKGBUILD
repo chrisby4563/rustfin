@@ -1,17 +1,16 @@
-# Custom package for the Delfin fork (chrisby branch).
-# Builds the latest committed state from the local repository:
-#   cd ~/projects/delfin/packaging/arch && makepkg -si
-pkgname=delfin-chrisby
+# Rustfin – builds the latest committed state of this repository:
+#   cd packaging/arch && makepkg -si
+pkgname=rustfin
 pkgver=0.4.8.r475.g3da69b9
 pkgrel=1
-pkgdesc="Jellyfin client (GTK4/mpv) – fork with SyncPlay, filters, chapters and more"
+pkgdesc="Jellyfin client (Rust/GTK4/mpv), fork of Delfin with SyncPlay, filters, chapters and more"
 arch=('x86_64')
-url="https://github.com/chrisby4563/delfin"
+url="https://github.com/chrisby4563/rustfin"
 license=('GPL-3.0-or-later')
 depends=('gtk4' 'libadwaita' 'mpv' 'libepoxy' 'openssl' 'glib2' 'gst-plugins-bad-libs' 'gst-plugins-base-libs')
 makedepends=('git' 'meson' 'cargo' 'appstream')
-provides=('delfin')
-conflicts=('delfin' 'delfin-git')
+replaces=('delfin-chrisby')
+conflicts=('delfin-chrisby')
 options=('!lto' '!debug')
 source=("delfin::git+file://${startdir}/../..#branch=chrisby")
 sha256sums=('SKIP')

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/cafe/avery/Delfin/">
+  <gresource prefix="/io/github/chrisby4563/Rustfin/">
     <file compressed="true" preprocess="xml-stripblanks" alias="@APP_ID@.metainfo.xml">@APP_ID@.metainfo.xml</file>
   </gresource>
 </gresources>

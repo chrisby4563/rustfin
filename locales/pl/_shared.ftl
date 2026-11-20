@@ -1,1 +1,1 @@
-app-name = Delfin
+app-name = Rustfin

@@ -72,12 +72,12 @@ mod tests {
 
     #[test]
     fn test_translate() {
-        assert_eq!(tr!("app-name"), "Delfin");
+        assert_eq!(tr!("app-name"), "Rustfin");
     }
 
     #[test]
     fn test_tera_translate() -> Result<(), tera::Error> {
-        assert_eq!(tera_tr(r#"{{ tr(key="app-name") }}"#)?, "Delfin");
+        assert_eq!(tera_tr(r#"{{ tr(key="app-name") }}"#)?, "Rustfin");
         Ok(())
     }
 }

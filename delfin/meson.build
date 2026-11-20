@@ -60,7 +60,7 @@ custom_target(
   env: env,
   command: [
     'cp',
-    'delfin' / rust_target / meson.project_name(),
+    'delfin' / rust_target / 'rustfin',
     '@OUTPUT@',
   ],
   install: true,

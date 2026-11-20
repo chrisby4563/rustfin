@@ -681,43 +681,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
-name = "delfin"
-version = "0.4.8"
-dependencies = [
- "anyhow",
- "bytes",
- "chrono",
- "derive_builder",
- "dirs",
- "env_logger",
- "fluent-templates",
- "futures-util",
- "grass",
- "image",
- "jellyfin_api",
- "pretty_assertions",
- "regex",
- "relm4",
- "relm4-icons",
- "reqwest",
- "serde",
- "serde_json",
- "serde_repr",
- "souvlaki",
- "sys-locale",
- "tera",
- "tokio",
- "tokio-tungstenite",
- "toml",
- "tracing",
- "unic-langid",
- "uuid",
- "video_player_gst",
- "video_player_mpv",
- "whoami",
-]
-
-[[package]]
 name = "derivative"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2935,6 +2898,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
  "semver",
+]
+
+[[package]]
+name = "rustfin"
+version = "0.4.8"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "chrono",
+ "derive_builder",
+ "dirs",
+ "env_logger",
+ "fluent-templates",
+ "futures-util",
+ "grass",
+ "image",
+ "jellyfin_api",
+ "pretty_assertions",
+ "regex",
+ "relm4",
+ "relm4-icons",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "souvlaki",
+ "sys-locale",
+ "tera",
+ "tokio",
+ "tokio-tungstenite",
+ "toml",
+ "tracing",
+ "unic-langid",
+ "uuid",
+ "video_player_gst",
+ "video_player_mpv",
+ "whoami",
 ]
 
 [[package]]

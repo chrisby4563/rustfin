@@ -69,7 +69,8 @@ fn get_config_file(create_dir: bool) -> Option<PathBuf> {
         None => return None,
     };
 
-    let dir = config_dir.join("delfin");
+    let dir = config_dir.join("rustfin");
+    migrate_from_delfin(&config_dir, &dir);
 
     if create_dir {
         if let Err(err) = fs::create_dir_all(&dir) {
@@ -81,6 +82,22 @@ fn get_config_file(create_dir: bool) -> Option<PathBuf> {
     let config_file = dir.join("config.toml");
 
     Some(config_file)
+}
+
+/// Rustfin started as a fork of Delfin: on first start, copy an existing
+/// Delfin configuration (servers, accounts, preferences) so nobody has to
+/// sign in again. The old file is left in place.
+fn migrate_from_delfin(config_dir: &std::path::Path, dir: &std::path::Path) {
+    let old = config_dir.join("delfin").join("config.toml");
+    let new = dir.join("config.toml");
+    if new.exists() || !old.exists() {
+        return;
+    }
+    if let Err(err) = fs::create_dir_all(dir).and_then(|_| fs::copy(&old, &new)) {
+        tracing::warn!("Could not copy Delfin configuration: {err}");
+    } else {
+        tracing::info!("Copied Delfin configuration to {}", new.display());
+    }
 }
 
 fn get_config_file_exists() -> Option<PathBuf> {

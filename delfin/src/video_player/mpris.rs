@@ -55,7 +55,7 @@ impl MprisPlaybackReporter {
     ) -> Self {
         let config = PlatformConfig {
             dbus_name: APP_ID,
-            display_name: "Delfin",
+            display_name: "Rustfin",
             // Will need to pass a window handle for Windows support
             hwnd: None,
         };

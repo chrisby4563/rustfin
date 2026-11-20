@@ -13,7 +13,7 @@ impl SimpleComponent for About {
 
     view! {
         adw::AboutWindow::from_appdata(
-            &format!("/cafe/avery/Delfin/{}.metainfo.xml", APP_ID),
+            &format!("/io/github/chrisby4563/Rustfin/{}.metainfo.xml", APP_ID),
             Some(VERSION),
         ) {
             set_modal: true,

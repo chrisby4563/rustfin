@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-const CLIENT_NAME: &str = "Delfin";
+const CLIENT_NAME: &str = "Rustfin";
 
 pub fn get_auth_header(device_id: &Uuid, access_token: Option<&str>) -> String {
     let device = whoami::devicename();
