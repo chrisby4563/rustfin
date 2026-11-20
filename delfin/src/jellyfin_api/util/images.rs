@@ -207,6 +207,20 @@ impl ApiClient {
         Ok(url.to_string())
     }
 
+    /// Großes Hintergrundbild; bei Folgen das der Serie.
+    pub fn get_wide_backdrop_url(&self, item: &BaseItemDto) -> Result<String> {
+        let Some(item_id) = item.parent_backdrop_item_id.or(item.series_id).or(item.id) else {
+            bail!("Missing backdrop item ID");
+        };
+        let mut url = self
+            .root
+            .join(&format!("Items/{item_id}/Images/Backdrop"))?;
+        url.query_pairs_mut()
+            .append_pair("maxWidth", "1920")
+            .append_pair("quality", "85");
+        Ok(url.to_string())
+    }
+
     pub fn get_next_up_thumbnail_url(&self, item: &BaseItemDto) -> Result<String> {
         let item_id = match item.id {
             Some(item_id) => item_id,
