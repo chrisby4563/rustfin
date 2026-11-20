@@ -44,11 +44,11 @@ impl SimpleComponent for Preferences {
             general_preferences: GeneralPreferences::builder().launch(()).detach(),
             video_player_preferences: VideoPlayerPreferences::builder().launch(()).detach(),
         };
-        // Konzept: erste Seite „Server & Konto“ (nur angemeldet sichtbar).
+        // Design: first page “Server & Account” (visible only when signed in).
         let auth_api = init.as_ref().map(|(api_client, _, _)| api_client.clone());
         let account_page = account_preferences::page(init, &root);
         root.add(&account_page);
-        // Wie im Jellyfin-Client: Wiedergabe und Startseite (nur angemeldet).
+        // Like the Jellyfin client: Playback and Home (only when signed in).
         if let Some(api_client) = auth_api {
             root.add(&jellyfin_preferences::playback_page(api_client.clone(), &root));
             root.add(&jellyfin_preferences::home_page(api_client, &root));

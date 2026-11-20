@@ -24,7 +24,7 @@ use super::backends::VideoPlayerBackend;
 #[derive(Debug)]
 enum State {
     Hidden,
-    /// Knopf für den Abschnitt mit diesem Index.
+    /// Button for the segment with this index.
     Visible(usize),
     AutoSkipCountdown(usize, usize),
 }
@@ -62,8 +62,8 @@ pub(crate) struct SkipIntro {
     video_player: Arc<RefCell<dyn VideoPlayerBackend>>,
     segments: Vec<SkipSegment>,
     state: State,
-    /// Intro dieser Folge schon automatisch übersprungen (danach nur noch Knopf,
-    /// falls man zurückspult, um es doch zu sehen).
+    /// Intro of this episode already skipped automatically (afterwards only show
+    /// a button if the user rewinds to watch it).
     already_skipped: Vec<usize>,
     enabled: bool,
     actions: SegmentActions,
@@ -164,7 +164,7 @@ impl AsyncComponent for SkipIntro {
                     return;
                 }
 
-                // Je Abschnittsart: automatisch (einmal je Folge), Knopf oder nichts.
+                // Per segment type: automatic (once per episode), button, or nothing.
                 for (index, segment) in self.segments.iter().enumerate() {
                     if self.action(segment.kind) != SegmentAction::Skip
                         || self.already_skipped.contains(&index)

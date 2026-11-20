@@ -91,7 +91,7 @@ impl ApiClient {
                 .append_pair("SeriesId", &series_id.to_string());
         }
 
-        // Wie die Weboberfläche: Zeitgrenze und „Erneut ansehen“ aus den Anzeige-Einstellungen.
+        // Like the web UI: use the time limit and “rewatch” setting from display preferences.
         use crate::utils::user_config::display_pref;
         let max_days: i64 = display_pref("maxDaysForNextUp")
             .and_then(|d| d.parse().ok())

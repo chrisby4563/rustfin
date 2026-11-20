@@ -3,8 +3,8 @@
 use adw::prelude::*;
 use relm4::{adw, gtk};
 
-/// Blendet `picture` jedes Mal ein, wenn es ein neues Bild bekommt.
-/// Bis dahin pulsiert die Fläche dahinter als Platzhalter (`.skeleton`).
+/// Fades in `picture` whenever it receives a new image.
+/// Until then, the area behind it pulses as a placeholder (`.skeleton`).
 pub fn fade_in_on_load(picture: &gtk::Picture) {
     let set_skeleton = |picture: &gtk::Picture, on: bool| {
         if let Some(parent) = picture.parent() {
@@ -30,7 +30,7 @@ pub fn fade_in_on_load(picture: &gtk::Picture) {
     });
 }
 
-/// Widget in 300 ms von unsichtbar auf sichtbar.
+/// Fade a widget from invisible to visible in 300 ms.
 pub fn fade_in(widget: &gtk::Widget) {
     let target = adw::CallbackAnimationTarget::new({
         let widget = widget.clone();

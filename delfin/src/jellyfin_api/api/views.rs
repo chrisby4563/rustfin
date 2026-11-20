@@ -59,7 +59,11 @@ impl ApiClient {
             .append_pair("SortBy", query.sort.sort_by())
             .append_pair(
                 "SortOrder",
-                if query.descending { "Descending" } else { "Ascending" },
+                if query.descending {
+                    "Descending"
+                } else {
+                    "Ascending"
+                },
             )
             .append_pair("Recursive", "true")
             .append_pair("StartIndex", &start_index.to_string())
@@ -79,7 +83,7 @@ impl ApiClient {
             url.query_pairs_mut().append_pair("IsPlayed", "false");
         }
         match query.letter {
-            // „#“: alles vor A (Zahlen, Zeichen)
+            // “#”: everything before A (numbers and symbols)
             Some('#') => {
                 url.query_pairs_mut().append_pair("NameLessThan", "A");
             }
@@ -131,13 +135,13 @@ impl CollectionSort {
         }
     }
 
-    /// Sinnvolle Richtung beim Umschalten: neu/Jahr/Bewertung absteigend.
+    /// Sensible direction when switching: newest/year/rating descending.
     pub fn default_descending(&self) -> bool {
         !matches!(self, CollectionSort::Name)
     }
 }
 
-/// Filter und Sortierung einer Bibliotheksansicht.
+/// Filter and sorting for a library view.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CollectionQuery {
     pub sort: CollectionSort,
@@ -149,7 +153,7 @@ pub struct CollectionQuery {
 }
 
 impl ApiClient {
-    /// Genres, die in einer Bibliothek vorkommen (alphabetisch).
+    /// Genres present in a library (alphabetical).
     pub async fn get_collection_genres(&self, collection: &BaseItemDto) -> Result<Vec<String>> {
         let mut url = self.root.join("Genres")?;
         url.query_pairs_mut()
@@ -157,6 +161,10 @@ impl ApiClient {
             .append_pair("UserId", &self.account.id.to_string())
             .append_pair("SortBy", "SortName");
         let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
-        Ok(res.items.into_iter().filter_map(|genre| genre.name).collect())
+        Ok(res
+            .items
+            .into_iter()
+            .filter_map(|genre| genre.name)
+            .collect())
     }
 }

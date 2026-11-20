@@ -52,11 +52,11 @@ pub struct MediaTile {
     media: BaseItemDto,
     api_client: Arc<ApiClient>,
     thumbnail: Option<Texture>,
-    /// Bild wird noch geholt (Ladekreis). Danach ohne Bild: leere Kachel.
+    /// Image is still loading (spinner). Afterwards, no image means an empty tile.
     loading: bool,
-    /// Kontextmenü (Rechtsklick / langes Drücken).
+    /// Context menu (right-click / long press).
     menu: gtk::Popover,
-    /// Aus „Weiterschauen“ entfernt: Kachel ausblenden.
+    /// Removed from “Continue Watching”: hide the tile.
     hidden: bool,
 }
 
@@ -120,7 +120,7 @@ impl AsyncComponent for MediaTile {
                     },
                 },
 
-                // Rechtsklick und langes Drücken: Kontextmenü.
+                // Right-click and long press: context menu.
                 add_controller = gtk::GestureClick {
                     set_button: gdk::BUTTON_SECONDARY,
                     connect_pressed[sender] => move |gesture, _, x, y| {
@@ -188,8 +188,8 @@ impl AsyncComponent for MediaTile {
                     }
                 },
 
-                // Gesehen-Anzeige oben rechts: Haken = gesehen,
-                // Zahl = ungesehene Folgen einer Serie/Staffel.
+                // Watched indicator at top right: checkmark = watched,
+                // number = unplayed episodes in a series/season.
                 add_overlay = &gtk::Box {
                     add_css_class: "watched-badge",
                     set_halign: gtk::Align::End,
@@ -275,7 +275,7 @@ impl AsyncComponent for MediaTile {
         model.menu.set_parent(&widgets.overlay);
         model.menu.set_has_arrow(false);
         model.menu.set_position(gtk::PositionType::Bottom);
-        // Popover hängt am Overlay und muss vor dessen Abbau gelöst werden.
+        // The popover belongs to the overlay and must be detached before teardown.
         widgets.overlay.connect_destroy({
             let menu = model.menu.clone();
             move |_| menu.unparent()
@@ -366,11 +366,10 @@ impl AsyncComponent for MediaTile {
                     Some(BaseItemKind::CollectionFolder) => {
                         APP_BROKER.send(AppInput::ShowCollection(self.media.clone()));
                     }
-                    // Film/Serie/Staffel: erst die Detailseite (Infos,
-                    // Staffel- und Folgenauswahl) zeigen statt sofort
-                    // abzuspielen. Abspielen geht dort über den Knopf im
-                    // Kopfbereich. Einzelne Folgen (Weiterschauen, Next Up)
-                    // starten weiter direkt.
+                    // Movie/series/season: show details first (information and
+                    // season/episode selection) instead of playing immediately.
+                    // Playback is available from the header button. Individual
+                    // episodes (Continue Watching, Next Up) still start directly.
                     Some(BaseItemKind::Movie | BaseItemKind::Series | BaseItemKind::Season) => {
                         APP_BROKER.send(AppInput::ShowDetails(self.media.clone()));
                     }
@@ -442,7 +441,7 @@ impl MediaTile {
         }
     }
 
-    /// Menüeinträge passend zum Zustand neu aufbauen.
+    /// Rebuild menu entries for the current state.
     fn build_menu(&self, sender: &AsyncComponentSender<Self>) {
         let list = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let add = |label: &str, input: fn() -> MediaTileInput| {
@@ -572,9 +571,9 @@ async fn get_thumbnail(
         }
     };
 
-    // Erst das vom Original gewählte Bild, dann Ersatzbilder: Folgen in
-    // „Weiterschauen“ haben auf Jellyfin 12 oft weder eigene Bildkennungen
-    // noch Eltern-Thumb – dann bleibt die Kachel sonst leer.
+    // Try the originally selected image first, then fallbacks: episodes in
+    // “Continue Watching” on Jellyfin 12 often have neither their own image ID
+    // nor a parent thumbnail, which would otherwise leave the tile empty.
     let kinds: &[&str] = match tile_display {
         MediaTileDisplay::Cover | MediaTileDisplay::CoverLarge => &["Primary"],
         _ => &["Thumb", "Backdrop", "Primary"],
@@ -605,8 +604,8 @@ async fn get_thumbnail(
     let mut found = None;
     for img_url in candidates {
         if let Some(bytes) = fetch_image_bytes(&img_url, media).await {
-            // Prüfen, ob es sich dekodieren lässt; das Pixbuf selbst darf
-            // nicht über ein await gehalten werden (nicht Send).
+            // Check that it can be decoded; do not retain the pixbuf across an
+            // await (it is not Send).
             if gdk_pixbuf::Pixbuf::from_read(VecDeque::from(bytes.clone())).is_ok() {
                 found = Some(bytes);
                 break;
@@ -648,7 +647,7 @@ async fn get_thumbnail(
     Some(gdk::Texture::for_pixbuf(&resized))
 }
 
-/// Holt Bilddaten; `None` bei Netzfehler oder fehlendem Bild (404).
+/// Fetches image data; `None` on network failure or a missing image (404).
 async fn fetch_image_bytes(img_url: &str, media: &BaseItemDto) -> Option<Vec<u8>> {
     let response = match reqwest::get(img_url).await {
         Ok(response) => response,
@@ -669,7 +668,7 @@ async fn fetch_image_bytes(img_url: &str, media: &BaseItemDto) -> Option<Vec<u8>
     }
 }
 
-/// Was oben rechts auf der Kachel steht.
+/// What appears at the tile's top right.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum WatchedBadge {
     Played,

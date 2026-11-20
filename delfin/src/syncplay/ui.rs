@@ -1,5 +1,5 @@
 //! Knopf „Gemeinsam schauen“: Gruppen anzeigen, beitreten, erstellen,
-//! verlassen. Steckt in der Kopfleiste der Bibliothek und im Player.
+//! leave. It lives in the library header bar and the player.
 
 use gtk::prelude::*;
 use relm4::prelude::*;
@@ -159,7 +159,7 @@ impl Component for SyncPlayButton {
                 );
             }
             SyncPlayButtonCommand::Done(Ok(())) => {
-                // Gruppenwechsel meldet der Server; kurz darauf neu aufbauen.
+                // The server reports group changes; rebuild shortly afterward.
                 let sender = sender.clone();
                 relm4::gtk::glib::timeout_add_local_once(
                     std::time::Duration::from_millis(700),
@@ -171,7 +171,7 @@ impl Component for SyncPlayButton {
     }
 }
 
-/// „Gemeinsam · 2 · Läuft“
+/// “Together · 2 · Playing”
 fn status_text(group: &GroupInfo) -> String {
     let state = match group.state.as_str() {
         "Waiting" => tr!("syncplay-state-waiting-short").to_string(),
@@ -245,7 +245,7 @@ fn show_group(content: &gtk::Box, group: &GroupInfo, sender: &ComponentSender<Sy
         wrap_label(&status_text(group)),
         wrap_label(tr!("syncplay-hint")),
     ];
-    // Allein in der Gruppe: Austreten löst sie auf (Server löscht leere Gruppen).
+    // Alone in the group: leaving dissolves it (the server deletes empty groups).
     let leave = if group.participants.len() <= 1 {
         button(tr!("syncplay-dissolve"), false)
     } else {
@@ -294,8 +294,8 @@ fn show_groups(content: &gtk::Box, groups: &[GroupInfo], sender: &ComponentSende
     children.push(entry.upcast());
     children.push(create.upcast());
 
-    // Austreten immer anbieten: Der Server merkt sich die Gruppe pro Gerät,
-    // auch wenn Delfin selbst gerade nichts davon weiß.
+    // Always offer leaving: the server retains a group per device, even when
+    // Delfin itself currently knows nothing about it.
     let leave = button(tr!("syncplay-leave"), false);
     leave.add_css_class("flat");
     leave.set_tooltip_text(Some(tr!("syncplay-leave-any-tooltip")));

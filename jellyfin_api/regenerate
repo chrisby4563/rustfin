@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# Erzeugt jellyfin_api/src/lib.rs neu aus der OpenAPI-Beschreibung eines
-# laufenden Jellyfin-Servers (nur Datentypen; Delfin stellt seine Abfragen selbst).
+# Regenerates jellyfin_api/src/lib.rs from a running Jellyfin server's OpenAPI
+# description (data types only; Delfin performs its own requests).
 #
-# Voraussetzungen: jq, rustfmt, Generator der Original-Autorin:
+# Requirements: jq, rustfmt, and the original author's generator:
 #   cargo install --root /tmp/progenitor cargo-progenitor --git https://github.com/coolavery/progenitor.git
 # Aufruf:  ./regenerate http://jellyfin.local:8096 /path/to/cargo-progenitor
 set -euo pipefail
 server=${1:?Server-URL}; gen=${2:?Pfad zu cargo-progenitor}
 here=$(cd "$(dirname "$0")" && pwd); work=$(mktemp -d)
 curl -fsS "$server/api-docs/openapi.json" -o "$work/openapi.json"
-# Wie im Original: Endpunkte weg, enum+allOf-Doppelungen weg; Version 3.0.4 kennt der Generator nicht.
+# As in the original: remove endpoints and enum+allOf duplicates; the generator does not support version 3.0.4.
 jq 'del(.paths) + {paths: {}} | .openapi = "3.0.3"
   | .components.schemas |= with_entries(.value |= (if has("properties") then .properties |= with_entries(.value |= (if has("enum") and has("allOf") then del(.enum) else . end)) else . end))' \
   "$work/openapi.json" > "$work/spec.json"
 RUSTFMT="$here/tools/rustfmt-shim" "$gen" progenitor -i "$work/spec.json" -o "$work/out" -n jellyfin_api -v 0.0.0 --interface builder --license-name Unlicense >/dev/null
 cp "$work/out/src/lib.rs" "$here/src/lib.rs"
 # Nacharbeiten:
-# 1. Unbekannte Felder zulassen (neuere Server schicken neue Felder).
+# 1. Allow unknown fields (newer servers send new fields).
 sed -i '/^    #\[serde(deny_unknown_fields)\]$/d' "$here/src/lib.rs"
 # 2. Auffangwert Unrecognized in jedem String-Enum (neue Enum-Werte).
 python3 -I "$here/tools/enum_patch.py" "$work/openapi.json" "$here/src/lib.rs"
-# 3. UserItemDataDto.Key ist seit 12.x Pflicht, fehlt aber u. U. -> Standardwert.
+# 3. UserItemDataDto.Key is mandatory since 12.x but may be absent -> default value.
 python3 -I - "$here/src/lib.rs" <<'PY'
 import sys; p=sys.argv[1]; s=open(p).read()
 i=s.index('    pub struct UserItemDataDto {'); j=s.index('\n    }\n',i)
@@ -28,4 +28,4 @@ s=s[:i]+s[i:j].replace('#[serde(rename = "Key")]','#[serde(rename = "Key", defau
 open(p,'w').write(s)
 PY
 python3 -I "$here/tools/enum_report.py" "$work/openapi.json" "$here/src/lib.rs" | tail -1
-echo "Fertig. Version in jellyfin_api/Cargo.toml anpassen und Delfin bauen."
+echo "Done. Update the version in jellyfin_api/Cargo.toml and build Delfin."

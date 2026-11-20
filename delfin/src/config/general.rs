@@ -61,7 +61,7 @@ pub struct GeneralConfig {
     pub most_recent_login: Option<MostRecentLogin>,
     pub restore_most_recent_login: bool,
     pub use_episode_image: bool,
-    /// Großes Titelbild „Weiterschauen“ auf der Startseite.
+    /// Large “Continue Watching” hero image on the home page.
     #[serde(default = "default_true")]
     pub home_hero: bool,
 }

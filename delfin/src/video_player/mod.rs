@@ -45,9 +45,9 @@ use crate::video_player::controls::VideoPlayerControlsInit;
 use crate::video_player::next_up::{NextUp, NEXT_UP_VISIBILE};
 
 use self::backends::{PlayerState, VideoPlayerBackend};
+use self::controls::chapters::{ChaptersInput, CHAPTERS_BROKER};
 use self::controls::fullscreen::{FullscreenInput, FULLSCREEN_BROKER};
 use self::controls::play_pause::{PlayPauseInput, PLAY_PAUSE_BROKER};
-use self::controls::chapters::{ChaptersInput, CHAPTERS_BROKER};
 use self::controls::scrubber::{ScrubberInput, SCRUBBER_BROKER};
 use self::controls::volume::{VolumeInput, VOLUME_BROKER};
 use self::controls::{VideoPlayerControls, VideoPlayerControlsInput};
@@ -74,12 +74,12 @@ pub struct VideoPlayer {
     inhibit_cookie: Option<InhibitCookie>,
     player_state: PlayerState,
     next: Option<BaseItemDto>,
-    /// Stelle, an die nach dem Neuladen gesprungen wird (Tonspurwechsel bei
-    /// Server-Umwandlung). mpv ignoriert Sprünge vor Wiedergabebeginn.
+    /// Position to seek to after reload (audio-track change during server
+    /// conversion). mpv ignores seeks before playback begins.
     pending_seek: Option<usize>,
-    /// SyncPlay: nach dem Laden pausieren und an dieser Stelle bereit melden.
+    /// SyncPlay: pause after loading and report ready at this position.
     syncplay_ready_at: Option<f64>,
-    /// SyncPlay: letzter Start (Server-Zeit ms, Position s) für den Gleichlauf.
+    /// SyncPlay: last start (server time ms, position s) for synchronization.
     syncplay_anchor: Option<(i64, f64)>,
     /// SyncPlay: Tempo gerade zum Aufholen verstellt.
     syncplay_speed_adjusted: bool,
@@ -98,7 +98,10 @@ pub enum VideoPlayerInput {
     PlayerInitialized,
     ConfigUpdated(VideoPlayerConfig),
     PlayVideo(Arc<ApiClient>, Box<BaseItemDto>),
-    SetShowControls { show: bool, locked: bool },
+    SetShowControls {
+        show: bool,
+        locked: bool,
+    },
     ToggleControls,
     EndOfStream,
     StopPlayer,
@@ -111,17 +114,17 @@ pub enum VideoPlayerInput {
     /// Tonspur bei vom Server umgewandelten Streams wechseln (Index aus den
     /// MediaStreams des Servers): Stream neu anfordern, an gleicher Stelle weiter.
     SwitchServerAudioTrack(i32),
-    /// Qualität wechseln: Stream neu anfordern, an gleicher Stelle weiter.
+    /// Change quality: request a new stream and continue at the same position.
     SetQuality(StreamQuality),
-    /// SyncPlay: Befehl vom Server (zur angegebenen Server-Zeit ausführen).
+    /// SyncPlay: command from the server (execute at the given server time).
     SyncPlayCommand(crate::syncplay::SyncCommand),
     SyncPlayApply(crate::syncplay::SyncCommand),
-    /// SyncPlay: Titel läuft schon – an Stelle springen, pausieren, bereit melden.
+    /// SyncPlay: title already playing — seek, pause, report ready.
     SyncPlayPrepare(f64),
-    /// SyncPlay: „bereit“ melden, sobald das Bild an der Stelle steht
-    /// (Position, Startzeit der Wartezeit in ms).
+    /// SyncPlay: report “ready” when the image reaches the position
+    /// (position, wait-start time in ms).
     SyncPlayReadyPoll(f64, i64),
-    /// SyncPlay: eigene Gruppe erstellt – laufenden Titel an die Gruppe geben.
+    /// SyncPlay: created a group — add the current title to it.
     SyncPlayShareCurrent,
     SyncPlayCheckDrift,
 }
@@ -358,7 +361,7 @@ impl Component for VideoPlayer {
             }
         });
 
-        // SyncPlay-Gleichlauf jede Sekunde prüfen.
+        // Check SyncPlay synchronization every second.
         gtk::glib::timeout_add_seconds_local(1, {
             let sender = sender.clone();
             move || {
@@ -435,7 +438,7 @@ impl Component for VideoPlayer {
                 self.syncplay_hold(position, &sender);
             }
             VideoPlayerInput::SyncPlayReadyPoll(position, started_ms) => {
-                // Bereit = Player spielt (nicht lädt/puffert) und steht an der Stelle.
+                // Ready = player is playing (not loading/buffering) at the position.
                 let in_place = matches!(self.player_state, PlayerState::Playing { .. })
                     && (self.backend.borrow().position_precise() - position).abs() < 1.5;
                 let waited = chrono::Utc::now().timestamp_millis() - started_ms;
@@ -456,13 +459,13 @@ impl Component for VideoPlayer {
                 }
             }
             VideoPlayerInput::SyncPlayCheckDrift => {
-                // Läuft die Wiedergabe der Gruppe davon (> 2 s), nachziehen.
+                // Catch up if group playback drifts away (> 2 s).
                 if let (Some((when_ms, start)), PlayerState::Playing { paused: false }) =
                     (self.syncplay_anchor, &self.player_state)
                 {
                     if crate::syncplay::in_group() {
-                        let elapsed = (crate::syncplay::server_now_ms() - when_ms).max(0) as f64
-                            / 1000.0;
+                        let elapsed =
+                            (crate::syncplay::server_now_ms() - when_ms).max(0) as f64 / 1000.0;
                         let expected = start + elapsed;
                         let actual = self.backend.borrow().position_precise();
                         let drift = actual - expected; // > 0: wir sind voraus
@@ -490,7 +493,7 @@ impl Component for VideoPlayer {
                     info!("Switching quality to {quality:?}");
                     STREAM_SETTINGS.write().quality = quality;
                     // Tonspuren/Untertitel neu einlesen: direkt ↔ umgewandelt
-                    // ändert, wie Spuren gewechselt werden.
+                    // changes how tracks are switched.
                     self.reload_stream(true);
                 }
             }
@@ -498,8 +501,8 @@ impl Component for VideoPlayer {
                 self.inhibit_cookie = InhibitCookie::new().ok();
                 crate::syncplay::set_local_item(item.id);
                 self.syncplay_anchor = None;
-                // Von SyncPlay gestartet: an der Gruppen-Stelle beginnen,
-                // pausiert bleiben und bereit melden.
+                // Started by SyncPlay: begin at the group position, remain
+                // paused, and report ready.
                 self.syncplay_ready_at = crate::syncplay::take_pending_start();
                 if let Some(start) = self.syncplay_ready_at {
                     self.pending_seek = Some(start as usize);
@@ -512,7 +515,7 @@ impl Component for VideoPlayer {
 
                 self.media = Some(*item.clone());
                 {
-                    // Qualität bleibt für die Sitzung, Version und Tonspur
+                    // Quality remains for the session, version, and audio track
                     // gelten je Titel.
                     let mut settings = STREAM_SETTINGS.write();
                     settings.audio_stream_index = None;
@@ -551,7 +554,9 @@ impl Component for VideoPlayer {
                     relm4::spawn({
                         let api_client = api_client.clone();
                         async move {
-                            api_client.report_playback_started(item_id).await.unwrap();
+                            if let Err(err) = api_client.report_playback_started(item_id).await {
+                                tracing::warn!("Failed to report playback start: {err:#}");
+                            }
                         }
                     });
 
@@ -561,8 +566,12 @@ impl Component for VideoPlayer {
                 }
 
                 // Starts a background task that continuously reports playback progress
-                self.session_playback_reporter
-                    .start(&api_client, &item.id.unwrap(), &self.backend);
+                if let Some(item_id) = item.id {
+                    self.session_playback_reporter
+                        .start(&api_client, &item_id, &self.backend);
+                } else {
+                    tracing::warn!("Cannot report playback for an item without an ID");
+                }
 
                 self.mpris_playback_reporter = Some(MprisPlaybackReporter::new(
                     api_client.clone(),
@@ -614,7 +623,7 @@ impl Component for VideoPlayer {
                 });
             }
             VideoPlayerInput::EndOfStream => {
-                // Ende: Gleichlauf-Anker gehört zum alten Titel.
+                // End: the synchronization anchor belongs to the old title.
                 self.syncplay_anchor = None;
                 self.syncplay_reset_speed();
                 match self.player_state {
@@ -624,8 +633,9 @@ impl Component for VideoPlayer {
                     }
                 };
 
-                // Nächste Folge, wenn in Jellyfin eingeschaltet (Standard: an).
-                let auto_play = crate::utils::user_config::get_bool("EnableNextEpisodeAutoPlay", true);
+                // Next episode, if enabled in Jellyfin (default: on).
+                let auto_play =
+                    crate::utils::user_config::get_bool("EnableNextEpisodeAutoPlay", true);
                 if let Some(next) = self.next.as_ref().filter(|_| auto_play) {
                     APP_BROKER.send(AppInput::PlayVideo(next.clone()));
                     return;
@@ -653,12 +663,19 @@ impl Component for VideoPlayer {
                         // Report end of playback
                         relm4::spawn({
                             let api_client = api_client.clone();
-                            let item_id = media.id.unwrap();
+                            let Some(item_id) = media.id else {
+                                tracing::warn!(
+                                    "Cannot report playback stop for an item without an ID"
+                                );
+                                return;
+                            };
                             async move {
-                                api_client
-                                    .report_playback_stopped(item_id, position)
-                                    .await
-                                    .unwrap();
+                                if let Err(err) =
+                                    api_client.report_playback_stopped(item_id, position).await
+                                {
+                                    tracing::warn!("Failed to report playback stop: {err:#}");
+                                    return;
+                                }
                                 *LIBRARY_REFRESH_QUEUED.write() = true;
                                 *MEDIA_DETAILS_REFRESH_QUEUED.write() = true;
                             }
@@ -818,7 +835,7 @@ impl VideoPlayer {
                 "hwdec",
                 &video_player_config.mpv_prefs.get_hardware_decoding(),
             );
-            // Ton- und Untertitelwahl nach den Jellyfin-Benutzereinstellungen.
+            // Audio and subtitle selection according to Jellyfin user preferences.
             for (name, value) in crate::utils::user_config::mpv_track_options(
                 &video_player_config.preferred_audio_languages,
             ) {
@@ -827,7 +844,7 @@ impl VideoPlayer {
         });
     }
 
-    /// SyncPlay-Befehl jetzt ausführen.
+    /// Execute the SyncPlay command now.
     fn apply_syncplay(
         &mut self,
         command: crate::syncplay::SyncCommand,
@@ -836,10 +853,9 @@ impl VideoPlayer {
         use crate::syncplay::CommandKind;
         let position = self.backend.borrow().position_precise();
         self.syncplay_reset_speed();
-        // Noch am Laden: mpv nicht anfassen (eine Pause vor dem ersten Bild
-        // hält das Laden an). Nur das Ziel merken, Rest beim Ladeende.
-        if matches!(self.player_state, PlayerState::Loading) && self.syncplay_ready_at.is_some()
-        {
+        // Still loading: do not touch mpv (a pause before the first image stops
+        // loading). Record only the target; do the rest when loading finishes.
+        if matches!(self.player_state, PlayerState::Loading) && self.syncplay_ready_at.is_some() {
             info!("SyncPlay apply {:?} while loading → deferred", command.kind);
             match command.kind {
                 CommandKind::Unpause => {
@@ -858,9 +874,9 @@ impl VideoPlayer {
         );
         match command.kind {
             CommandKind::Unpause => {
-                // Verspätet angekommen: um die verstrichene Zeit weiter vorn starten.
-                let late = (crate::syncplay::server_now_ms() - command.when_ms).max(0) as f64
-                    / 1000.0;
+                // Arrived late: start further ahead by the elapsed time.
+                let late =
+                    (crate::syncplay::server_now_ms() - command.when_ms).max(0) as f64 / 1000.0;
                 let target = command.position_seconds + late;
                 if (position - target).abs() >= 0.3 {
                     self.backend.borrow().seek_to_precise(target);
@@ -883,8 +899,8 @@ impl VideoPlayer {
         }
     }
 
-    /// An `position` springen, pausieren, „puffert“ melden und „bereit“, sobald
-    /// das Bild dort steht. Den gemeinsamen Start schickt dann der Server.
+    /// Seek to `position`, pause, report “buffering”, and report “ready” when
+    /// the image is there. The server then sends the shared start.
     fn syncplay_hold(&mut self, position: f64, sender: &ComponentSender<Self>) {
         self.syncplay_anchor = None;
         self.syncplay_reset_speed();
@@ -905,7 +921,7 @@ impl VideoPlayer {
         }
     }
 
-    /// Stream mit den aktuellen `STREAM_SETTINGS` neu anfordern und an der
+    /// Request a new stream with the current `STREAM_SETTINGS` and at the
     /// gleichen Stelle weiterspielen.
     fn reload_stream(&mut self, refresh_tracks: bool) {
         let (Some(api_client), Some(media)) = (self.api_client.clone(), self.media.clone()) else {
@@ -954,11 +970,11 @@ impl VideoPlayer {
             // Load volume settings once playback starts
             VOLUME_BROKER.send(VolumeInput::LoadSettings);
 
-            // SyncPlay: geladen → pausieren und der Gruppe „bereit“ melden;
-            // den gemeinsamen Start schickt der Server.
+            // SyncPlay: loaded → pause and report “ready” to the group; the
+            // server sends the shared start.
             if let Some(start) = self.syncplay_ready_at.take() {
                 if let Some((when_ms, position)) = self.syncplay_anchor {
-                    // Während des Ladens kam schon „Los“: gleich mitlaufen.
+                    // “Go” arrived while loading: start along with the group.
                     let elapsed =
                         (crate::syncplay::server_now_ms() - when_ms).max(0) as f64 / 1000.0;
                     self.backend.borrow().seek_to_precise(position + elapsed);
@@ -966,8 +982,7 @@ impl VideoPlayer {
                     self.backend.borrow().pause();
                     self.backend.borrow().seek_to_precise(start);
                     let started = chrono::Utc::now().timestamp_millis();
-                    VIDEO_PLAYER_BROKER
-                        .send(VideoPlayerInput::SyncPlayReadyPoll(start, started));
+                    VIDEO_PLAYER_BROKER.send(VideoPlayerInput::SyncPlayReadyPoll(start, started));
                 }
             }
         }

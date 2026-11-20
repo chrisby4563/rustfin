@@ -5,7 +5,7 @@
 .cargo/
 .direnv/
 
-# Von Hand gebaute C-Bibliothek (ohne meson)
+# Manually built C library (without meson)
 video_player_mpv/sys/build/*.o
 video_player_mpv/sys/build/*.a
 

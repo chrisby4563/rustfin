@@ -244,7 +244,9 @@ impl SimpleComponent for SubtitlesPreferences {
             }
         }
 
-        config.save().expect("Error saving config");
+        if let Err(err) = config.save() {
+            tracing::error!("Failed to save configuration: {err}");
+        }
     }
 }
 

@@ -170,6 +170,8 @@ impl Volume {
         let mut config = CONFIG.write();
         config.video_player.volume = self.volume;
         config.video_player.muted = self.muted;
-        config.save().expect("Error saving volume settings");
+        if let Err(err) = config.save() {
+            tracing::error!("Failed to save volume settings: {err}");
+        }
     }
 }

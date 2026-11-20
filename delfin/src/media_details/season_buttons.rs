@@ -66,7 +66,7 @@ impl SimpleComponent for SeasonButtons {
     }
 }
 
-/// Rechtsklick auf eine Staffel: ganze Staffel als (un)gesehen markieren.
+/// Right-click a season: mark the entire season as (un)watched.
 fn add_season_menu(
     button: &gtk::ToggleButton,
     season: &BaseItemDto,

@@ -1,4 +1,4 @@
-//! Knopf für den Mini-Player (nur unter Hyprland sichtbar).
+//! Mini-player button (visible only under Hyprland).
 
 use gtk::prelude::*;
 use relm4::prelude::*;
@@ -34,7 +34,11 @@ impl SimpleComponent for MiniPlayerButton {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let model = MiniPlayerButton {
             active: mini_player::active(),
         };
@@ -43,7 +47,7 @@ impl SimpleComponent for MiniPlayerButton {
     }
 
     fn update(&mut self, _: Self::Input, _sender: ComponentSender<Self>) {
-        // Aus dem Vollbild zuerst heraus, sonst greift Schweben nicht.
+        // Exit fullscreen first, otherwise floating does not apply.
         if !mini_player::active() {
             if let Some(window) = get_main_window() {
                 if window.is_fullscreen() {

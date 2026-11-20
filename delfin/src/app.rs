@@ -70,8 +70,8 @@ pub struct App {
     server: Option<config::Server>,
     account: Option<config::Account>,
     preferences: Option<Controller<Preferences>>,
-    /// Zuletzt gestartetes Element und wann – fängt Doppelklicks ab, die
-    /// sonst zweimal abspielten („Page … is already in navigation stack“).
+    /// Most recently started item and time — prevents double-clicks from
+    /// playing twice (“Page … is already in navigation stack”).
     last_play: Option<(Option<uuid::Uuid>, std::time::Instant)>,
 }
 
@@ -113,7 +113,9 @@ impl Component for App {
                 config.window.width = window.width() as usize;
                 config.window.height = window.height() as usize;
                 config.window.maximized = window.is_maximized();
-                config.save().expect("Failed to save window state");
+                if let Err(err) = config.save() {
+                    tracing::error!("Failed to save window state: {err}");
+                }
                 glib::Propagation::Proceed
             },
 
@@ -232,9 +234,9 @@ impl Component for App {
             })
             .build();
 
-        // Zurück nur über den Knopf (und Escape/Alt+Links/Maustaste), nicht
-        // per Wischgeste: Ein waagerechtes Wischen in einer Kachelreihe löste
-        // sonst versehentlich „Zurück“ aus.
+        // Navigate back only with the button (and Escape/Alt+Left/mouse button),
+        // not a swipe gesture: horizontal swipes in a tile row would otherwise
+        // accidentally trigger “Back”.
         disable_swipe_back(navigation);
 
         ComponentParts { model, widgets }
@@ -324,7 +326,7 @@ impl Component for App {
                 }
             }
             AppInput::PlayVideo(item) => {
-                // In einer SyncPlay-Gruppe startet der Server den Titel für alle.
+                // In a SyncPlay group, the server starts the title for everyone.
                 let start_ticks = item
                     .user_data
                     .as_ref()
@@ -489,13 +491,12 @@ relm4::new_stateless_action!(MenuAction, AppActionGroup, "menu");
 relm4::new_stateless_action!(PreferencesAction, AppActionGroup, "preferences");
 relm4::new_stateless_action!(QuitAction, AppActionGroup, "quit");
 
-/// Nimmt der Navigationsansicht die Wischgeste „Zurück“.
+/// Removes the “Back” swipe gesture from the navigation view.
 ///
-/// libadwaita bietet dafür keinen Schalter (Stand 1.10). Die Geste kommt aus
-/// einem internen AdwSwipeTracker, der sich als Scroll-Empfänger (Touchpad)
-/// und als Zieh-Geste (Touchscreen) an die Ansicht hängt. Genau diese beiden
-/// Arten werden abgenommen; Tastenkürzel (ShortcutController) und die
-/// Maus-Zurücktaste (GestureClick) bleiben unberührt.
+/// libadwaita has no switch for this (as of 1.10). The gesture comes from an
+/// internal AdwSwipeTracker that attaches to the view as a scroll receiver
+/// (touchpad) and drag gesture (touchscreen). Only those two are removed;
+/// keyboard shortcuts and the mouse Back button remain unaffected.
 fn disable_swipe_back(navigation: &adw::NavigationView) {
     let controllers: Vec<gtk::EventController> = navigation
         .observe_controllers()
@@ -515,6 +516,6 @@ fn disable_swipe_back(navigation: &adw::NavigationView) {
         navigation.remove_controller(controller);
     }
     if controllers.is_empty() {
-        tracing::warn!("Keine Wisch-Empfänger an der Navigationsansicht gefunden");
+        tracing::warn!("No swipe receivers found on the navigation view");
     }
 }

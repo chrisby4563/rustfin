@@ -55,6 +55,7 @@ pub enum MediaDetailsHeaderOutput {
 pub enum MediaDetailsHeaderCommandOutput {
     PlayNextLoaded(Box<(String, Option<BaseItemDto>)>),
     BackdropLoaded(VecDeque<u8>),
+    BackdropLoadFailed(String),
     PosterLoaded(VecDeque<u8>),
 }
 
@@ -75,7 +76,7 @@ impl AsyncComponent for MediaDetailsHeader {
                 add_css_class: "media-details-header",
                 set_overflow: gtk::Overflow::Hidden,
 
-                // Hintergrundbild über die ganze Breite.
+                // Background image across the full width.
                 #[name = "backdrop_picture"]
                 gtk::Picture {
                     #[watch]
@@ -218,7 +219,7 @@ impl AsyncComponent for MediaDetailsHeader {
                                         },
                                     },
 
-                                    // Film angefangen: zusätzlich „Von vorn“.
+                                    // Movie started: additionally “From the beginning”.
                                     gtk::Button {
                                         set_label: tr!("media-details-play-from-start"),
                                         add_css_class: "pill",
@@ -276,16 +277,14 @@ impl AsyncComponent for MediaDetailsHeader {
         } = init;
 
         if let Ok(img_url) = api_client.get_backdrop_url(&item) {
-            sender.oneshot_command(async {
-                let img_bytes: VecDeque<u8> = reqwest::get(img_url)
-                    .await
-                    .expect("Error getting media tile image: {img_url}")
-                    .bytes()
-                    .await
-                    .expect("Error getting media tile image bytes: {img_url}")
-                    .into_iter()
-                    .collect();
-                MediaDetailsHeaderCommandOutput::BackdropLoaded(img_bytes)
+            sender.oneshot_command(async move {
+                match reqwest::get(&img_url).await {
+                    Ok(response) => match response.bytes().await {
+                        Ok(bytes) => MediaDetailsHeaderCommandOutput::BackdropLoaded(bytes.into_iter().collect()),
+                        Err(err) => MediaDetailsHeaderCommandOutput::BackdropLoadFailed(err.to_string()),
+                    },
+                    Err(err) => MediaDetailsHeaderCommandOutput::BackdropLoadFailed(err.to_string()),
+                }
             });
         }
 
@@ -342,7 +341,7 @@ impl AsyncComponent for MediaDetailsHeader {
         crate::utils::fade::fade_in_on_load(&widgets.backdrop_picture);
         crate::utils::fade::fade_in_on_load(&widgets.poster_picture);
 
-        // Mehrere Versionen (z. B. 4K und 1080p): Auswahl neben dem Abspielknopf.
+        // Multiple versions (e.g. 4K and 1080p): selection next to the play button.
         if let (Some(item_id), Some(sources)) = (model.item.id, model.item.media_sources.as_ref()) {
             if sources.len() > 1 {
                 let ids: Vec<Option<String>> = sources.iter().map(|s| s.id.clone()).collect();
@@ -371,7 +370,7 @@ impl AsyncComponent for MediaDetailsHeader {
             }
         }
 
-        // Löschen (nur wenn das Konto darf): Film, Serie oder Staffel.
+        // Delete (only if the account may): movie, series, or season.
         if crate::utils::delete_item::can_delete() {
             let delete = gtk::Button::builder()
                 .icon_name("user-trash-symbolic")
@@ -476,6 +475,9 @@ impl AsyncComponent for MediaDetailsHeader {
                     }
                 };
                 self.backdrop = Some(Texture::for_pixbuf(&pixbuf));
+            }
+            MediaDetailsHeaderCommandOutput::BackdropLoadFailed(err) => {
+                tracing::warn!("Failed to load media backdrop: {err}");
             }
         }
     }

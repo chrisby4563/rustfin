@@ -169,7 +169,9 @@ impl Component for AccountList {
                         .output(AccountListOutput::AccountSelected(server.clone(), account))
                         .unwrap();
                 }
-                config.save().unwrap();
+                if let Err(err) = config.save() {
+                    tracing::error!("Failed to save account configuration: {err}");
+                }
             }
             AccountListInput::AcountSelected(index) => {
                 let index = index.current_index();
@@ -188,7 +190,9 @@ impl Component for AccountList {
                         server_id: server.id,
                         account_id: account.id,
                     });
-                    config.save().expect("Failed to update previous login");
+                    if let Err(err) = config.save() {
+                        tracing::error!("Failed to update previous login: {err}");
+                    }
 
                     sender
                         .output(AccountListOutput::AccountSelected(

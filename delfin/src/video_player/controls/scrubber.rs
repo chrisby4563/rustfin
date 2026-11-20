@@ -257,7 +257,9 @@ impl Component for Scrubber {
                 let mut config = CONFIG.write();
                 config.video_player.duration_display =
                     config.video_player.duration_display.toggle();
-                config.save().expect("Failed to save duration display");
+                if let Err(err) = config.save() {
+                    tracing::error!("Failed to save duration display: {err}");
+                }
             }
             ScrubberInput::DurationDisplayUpdated(duration_display) => {
                 self.duration_display = duration_display;

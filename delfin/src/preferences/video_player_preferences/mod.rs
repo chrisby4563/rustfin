@@ -126,7 +126,7 @@ impl Component for VideoPlayerPreferences {
                         },
                     },
 
-                    // Ersetzt durch „Abschnitte“ auf der Seite Wiedergabe.
+                    // Replaced by “Sections” on the Playback page.
                     add_row = &adw::SwitchRow {
                         set_visible: false,
                         set_title: tr!("prefs-vp-intro-skipper-auto-skip.title"),
@@ -297,7 +297,9 @@ impl Component for VideoPlayerPreferences {
             }
         };
 
-        config.save().expect("Error saving config");
+        if let Err(err) = config.save() {
+            tracing::error!("Failed to save configuration: {err}");
+        }
 
         self.update_view(widgets, sender);
     }

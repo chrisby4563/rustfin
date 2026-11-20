@@ -1,7 +1,7 @@
 //! Einstellungen wie im Jellyfin-Client: Wiedergabe (Ton, Untertitel, Ablauf,
-//! Abschnitte) und Startseite (Bereiche, „Als Nächstes“, Bibliotheken, Anzeige).
-//! Mit (Jellyfin) markierte Werte liegen auf dem Server und gelten auch in der
-//! Weboberfläche; der Rest ist nur für Delfin.
+//! sections) and Home (areas, “Next Up”, libraries, display). Values marked
+//! (Jellyfin) reside on the server and also apply to the web UI; the rest is
+//! only for Delfin.
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -31,7 +31,7 @@ fn toast(window: &adw::PreferencesWindow, text: &str) {
     window.add_toast(adw::Toast::new(text));
 }
 
-/// Wert der Jellyfin-Benutzereinstellungen speichern (im Hintergrund).
+/// Save a Jellyfin user-preference value (in the background).
 fn save_server(api_client: &Arc<ApiClient>, window: &adw::PreferencesWindow, key: &str, value: Value) {
     let api_client = api_client.clone();
     let window = window.clone();
@@ -334,7 +334,7 @@ pub fn home_page(api_client: Arc<ApiClient>, window: &adw::PreferencesWindow) ->
     }
     page.add(&home);
 
-    // ── Als Nächstes ──
+    // ── Next Up ──
     let next_up = adw::PreferencesGroup::builder()
         .title(tr!("prefs-jf-next-up"))
         .build();

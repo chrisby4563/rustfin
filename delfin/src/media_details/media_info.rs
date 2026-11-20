@@ -1,5 +1,5 @@
-//! Medieninfo auf der Detailseite: Bild, Ton, Untertitel und Datei, als
-//! aufklappbare Zeile (zu: Kurzfassung, auf: alle Spuren).
+//! Media information on the detail page: video, audio, subtitles, and file as
+//! an expandable row (closed: summary, open: all tracks).
 
 use adw::prelude::*;
 use jellyfin_api::types::{BaseItemDto, MediaSourceInfo, MediaStream, MediaStreamType};
@@ -134,7 +134,7 @@ fn file_text(source: &MediaSourceInfo) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
-/// Konzept Film: Medieninfo als Kasten neben Kapiteln und Besetzung.
+/// Movie design: media info as a box beside chapters and cast.
 pub(crate) fn media_info_box(item: &BaseItemDto) -> Option<gtk::Widget> {
     let source = item.media_sources.as_ref()?.first()?;
     let streams = source.media_streams.clone().unwrap_or_default();

@@ -187,8 +187,8 @@ gboolean process_events(gpointer data) {
       break;
 
     case MPV_EVENT_LOG_MESSAGE: {
-      // Warnungen und Infos von mpv auf stderr (z. B. verworfene Bilder,
-      // Pufferleer, Hardware-Dekodierung). Debug-Meldungen bleiben stumm.
+      // Warnings and information from mpv on stderr (for example dropped frames,
+      // buffer underruns, hardware decoding). Debug messages remain silent.
       mpv_event_log_message *msg = (mpv_event_log_message *)event->data;
       if (msg->log_level <= MPV_LOG_LEVEL_INFO) {
         gchar *text = redact_tokens(msg->text);
@@ -457,8 +457,8 @@ void vpm_video_player_mpv_seek_to(VpmVideoPlayerMpv *self, uint seconds) {
   g_free(val);
 }
 
-/* Genau auf Bruchteile einer Sekunde springen (SyncPlay). g_ascii_dtostr
- * schreibt immer einen Punkt, unabhängig vom Gebietsschema. */
+/* Seek to fractional seconds precisely (SyncPlay). g_ascii_dtostr
+ * always writes a dot, independently of the locale. */
 void vpm_video_player_mpv_seek_to_precise(VpmVideoPlayerMpv *self,
                                           double seconds) {
   gchar val[G_ASCII_DTOSTR_BUF_SIZE];
@@ -485,7 +485,7 @@ void vpm_video_player_mpv_frame_step_backwards(VpmVideoPlayerMpv *self) {
 }
 
 bool vpm_video_player_mpv_mute(VpmVideoPlayerMpv *self) {
-  // MPV_FORMAT_FLAG schreibt ein int (4 Byte), kein bool.
+  // MPV_FORMAT_FLAG writes an int (4 bytes), not a bool.
   int mute = 0;
   if (mpv_get_property(self->mpv_ctx->handle, "ao-mute", MPV_FORMAT_FLAG,
                        &mute) < 0) {
@@ -502,7 +502,7 @@ void vpm_video_player_mpv_set_mute(VpmVideoPlayerMpv *self, bool mute) {
 
 double vpm_video_player_mpv_volume(VpmVideoPlayerMpv *self) {
   double volume = 1;
-  // Lesen, nicht setzen (vorher stellte jede Abfrage die Lautstärke zurück).
+  // Read, do not set (previously every query reset the volume).
   if (mpv_get_property(self->mpv_ctx->handle, "ao-volume", MPV_FORMAT_DOUBLE,
                        &volume) < 0) {
     fprintf(stderr, "Error getting ao-volume.\n");
@@ -517,7 +517,7 @@ void vpm_video_player_mpv_set_volume(VpmVideoPlayerMpv *self, double volume) {
 
 double vpm_video_player_mpv_playback_speed(VpmVideoPlayerMpv *self) {
   double playback_speed = 1;
-  // Lesen, nicht setzen (vorher stellte jede Abfrage 1x ein).
+  // Read, do not set (previously every query set it once).
   if (mpv_get_property(self->mpv_ctx->handle, "speed", MPV_FORMAT_DOUBLE,
                        &playback_speed) < 0) {
     fprintf(stderr, "Error getting speed.\n");
@@ -535,11 +535,11 @@ void vpm_video_player_mpv_set_playback_speed(VpmVideoPlayerMpv *self,
 }
 
 int vpm_video_player_mpv_current_audio_track(VpmVideoPlayerMpv *self) {
-  // MPV_FORMAT_INT64 schreibt 8 Byte; ein int liess 4 Byte überlaufen.
+  // MPV_FORMAT_INT64 writes 8 bytes; an int overflowed by 4 bytes.
   int64_t id = -1;
   if (mpv_get_property(self->mpv_ctx->handle, "current-tracks/audio/id",
                        MPV_FORMAT_INT64, &id) < 0) {
-    // Keine Tonspur ausgewählt ist kein Fehler.
+    // No selected audio track is not an error.
     return -1;
   }
   return (int)id;
@@ -552,11 +552,11 @@ void vpm_video_player_mpv_set_audio_track(VpmVideoPlayerMpv *self,
 }
 
 int vpm_video_player_mpv_current_subtitle_track(VpmVideoPlayerMpv *self) {
-  // MPV_FORMAT_INT64 schreibt 8 Byte; ein int liess 4 Byte überlaufen.
+  // MPV_FORMAT_INT64 writes 8 bytes; an int overflowed by 4 bytes.
   int64_t id = -1;
   if (mpv_get_property(self->mpv_ctx->handle, "current-tracks/sub/id",
                        MPV_FORMAT_INT64, &id) < 0) {
-    // Keine Untertitel ausgewählt ist kein Fehler.
+    // No selected subtitle is not an error.
     return -1;
   }
   return (int)id;

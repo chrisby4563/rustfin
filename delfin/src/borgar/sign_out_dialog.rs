@@ -104,7 +104,9 @@ impl Component for SignOutDialog {
         tokio::task::spawn({
             let api_client = self.api_client.clone();
             async move {
-                api_client.sign_out().await.unwrap();
+                if let Err(err) = api_client.sign_out().await {
+                    tracing::warn!("Failed to sign out from server: {err:#}");
+                }
             }
         });
 
@@ -115,11 +117,16 @@ impl Component for SignOutDialog {
         if remove_server {
             servers.retain(|s| s.id != self.server.id);
         } else {
-            let server = servers.iter_mut().find(|s| s.id == self.server.id).unwrap();
-            server.accounts.retain(|a| a.id != self.account.id);
+            if let Some(server) = servers.iter_mut().find(|s| s.id == self.server.id) {
+                server.accounts.retain(|a| a.id != self.account.id);
+            } else {
+                tracing::warn!("Server disappeared while signing out");
+            }
         }
         config.servers = servers;
-        config.save().unwrap();
+        if let Err(err) = config.save() {
+            tracing::error!("Failed to save sign-out changes: {err:#}");
+        }
 
         APP_BROKER.send(AppInput::PopToPage(if remove_server {
             AppPage::Servers

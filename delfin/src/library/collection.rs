@@ -30,12 +30,12 @@ pub struct Collection {
     collection: BaseItemDto,
     borgar_menu: Controller<BorgarMenu>,
     media_page: Controller<MediaPage<CollectionItemsFetcher, EmptyComponent>>,
-    /// Sortierung/Filter der Ansicht.
+    /// View sorting/filter.
     query: CollectionQuery,
     genres: Vec<String>,
     genre_dropdown: gtk::DropDown,
     direction_button: gtk::Button,
-    /// Bleiben über Neuladen hinweg bestehen und wandern in die neue Seite.
+    /// Persist across reloads and move to the new page.
     filter_bar: gtk::Widget,
     letter_block: gtk::Widget,
 }
@@ -257,7 +257,7 @@ impl Collection {
     }
 }
 
-/// Löst ein Widget aus der alten Seite, damit die neue es aufnehmen kann.
+/// Detaches a widget from the old page so the new one can adopt it.
 fn detach(widget: &gtk::Widget) {
     let Some(parent) = widget.parent() else {
         return;
@@ -277,7 +277,7 @@ fn direction_icon(descending: bool) -> &'static str {
     }
 }
 
-/// Leiste mit Sortierung, Richtung, „Ungesehen“ und Genre.
+/// Bar with sorting, direction, “Unplayed”, and genre.
 fn filter_bar(
     sender: &ComponentSender<Collection>,
     genre_dropdown: &gtk::DropDown,

@@ -27,8 +27,7 @@ pub struct SeasonsInit {
     pub api_client: Arc<ApiClient>,
     pub series_id: Uuid,
     pub initial_selected_season_index: Option<usize>,
-    /// Staffel, die beim Öffnen vorausgewählt wird, falls kein Index gesetzt
-    /// ist (Staffel- oder Folgen-Kachel angeklickt).
+    /// Season preselected on opening if no index is set (season or episode tile clicked).
     pub initial_season_id: Option<Uuid>,
 }
 
@@ -41,7 +40,7 @@ pub enum SeasonsInput {
 #[derive(Debug)]
 pub enum SeasonsOutput {
     SeasonSelected(usize),
-    /// Gesehen-Status geändert: Staffeln und Folgen neu laden.
+    /// Watched state changed: reload seasons and episodes.
     Refresh,
 }
 
@@ -92,7 +91,13 @@ impl AsyncComponent for Seasons {
 
         let widgets = view_output!();
 
-        let seasons = api_client.get_seasons(&series_id).await.unwrap();
+        let seasons = match api_client.get_seasons(&series_id).await {
+            Ok(seasons) => seasons,
+            Err(err) => {
+                tracing::error!("Failed to load seasons: {err:#}");
+                Vec::new()
+            }
+        };
 
         let mut model = Seasons {
             api_client,
@@ -110,7 +115,12 @@ impl AsyncComponent for Seasons {
         let initial_selected_season_index = match initial_selected_season_index {
             Some(season) if season < model.seasons.len() => season,
             _ => initial_season_id
-                .and_then(|id| model.seasons.iter().position(|season| season.id == Some(id)))
+                .and_then(|id| {
+                    model
+                        .seasons
+                        .iter()
+                        .position(|season| season.id == Some(id))
+                })
                 .unwrap_or(0),
         };
 
@@ -155,8 +165,7 @@ impl AsyncComponent for Seasons {
                 let Some(season) = self.seasons.get(index) else {
                     return;
                 };
-                match super::watched_state::toggle_watched(season, &self.api_client, played).await
-                {
+                match super::watched_state::toggle_watched(season, &self.api_client, played).await {
                     Ok(_) => {
                         let _ = sender.output(SeasonsOutput::Refresh);
                     }

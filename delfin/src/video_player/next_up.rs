@@ -97,6 +97,7 @@ pub(crate) enum NextUpInput {
 #[derive(Debug)]
 pub(crate) enum NextUpCommandOutput {
     SetThumbnail(VecDeque<u8>),
+    ThumbnailLoadFailed(String),
 }
 
 #[relm4::component(pub(crate))]
@@ -255,10 +256,17 @@ impl Component for NextUp {
         _sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
-        let NextUpCommandOutput::SetThumbnail(img_bytes) = message;
-        let pixbuf = gdk_pixbuf::Pixbuf::from_read(img_bytes)
-            .expect("Error creating media tile pixbuf: {img_url}");
-        self.thumbnail = Some(gdk::Texture::for_pixbuf(&pixbuf));
+        match message {
+            NextUpCommandOutput::SetThumbnail(img_bytes) => {
+                match gdk_pixbuf::Pixbuf::from_read(img_bytes) {
+                    Ok(pixbuf) => self.thumbnail = Some(gdk::Texture::for_pixbuf(&pixbuf)),
+                    Err(err) => tracing::warn!("Failed to decode next-up thumbnail: {err}"),
+                }
+            }
+            NextUpCommandOutput::ThumbnailLoadFailed(err) => {
+                tracing::warn!("Failed to load next-up thumbnail: {err}");
+            }
+        }
     }
 }
 
@@ -275,16 +283,14 @@ impl NextUp {
     fn fetch_next_up_thumbnail(&mut self, sender: &ComponentSender<Self>, api_client: &ApiClient) {
         if let Some(next_up) = &self.next_up.0 {
             if let Ok(img_url) = api_client.get_next_up_thumbnail_url(&next_up.item) {
-                sender.oneshot_command(async {
-                    let img_bytes: VecDeque<u8> = reqwest::get(img_url)
-                        .await
-                        .expect("Error getting media tile image: {img_url}")
-                        .bytes()
-                        .await
-                        .expect("Error getting media tile image bytes: {img_url}")
-                        .into_iter()
-                        .collect();
-                    NextUpCommandOutput::SetThumbnail(img_bytes)
+                sender.oneshot_command(async move {
+                    match reqwest::get(&img_url).await {
+                        Ok(response) => match response.bytes().await {
+                            Ok(bytes) => NextUpCommandOutput::SetThumbnail(bytes.into_iter().collect()),
+                            Err(err) => NextUpCommandOutput::ThumbnailLoadFailed(err.to_string()),
+                        },
+                        Err(err) => NextUpCommandOutput::ThumbnailLoadFailed(err.to_string()),
+                    }
                 });
             }
         }

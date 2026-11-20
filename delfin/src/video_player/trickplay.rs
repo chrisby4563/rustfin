@@ -52,7 +52,13 @@ async fn load_native_trickplay(
         })
         // Use the first available width width
         .and_then(|trickplay| trickplay.into_iter().next())?;
-    let width: usize = width.parse().unwrap();
+    let width: usize = match width.parse() {
+        Ok(width) => width,
+        Err(err) => {
+            warn!("Invalid trickplay width {width}: {err}");
+            return None;
+        }
+    };
 
     let (tile_width, tile_height, thumbnail_count, height, interval) = (
         trickplay.tile_width? as usize,
@@ -78,12 +84,19 @@ async fn load_native_trickplay(
 
     // TODO: tile processing (loading images and splitting) is very slow
 
-    let tiles: Vec<_> = tiles
+    let tiles: Option<Vec<_>> = tiles
         .into_iter()
-        .map(|tile| {
-            image::load_from_memory_with_format(tile.as_bytes(), ImageFormat::Jpeg).unwrap()
-        })
+        .map(
+            |tile| match image::load_from_memory_with_format(tile.as_bytes(), ImageFormat::Jpeg) {
+                Ok(image) => Some(image),
+                Err(err) => {
+                    warn!("Failed to decode trickplay tile: {err}");
+                    None
+                }
+            },
+        )
         .collect();
+    let tiles = tiles?;
 
     let thumbnails: Vec<_> = (0..thumbnail_count)
         .map(|thumbnail_index| {
@@ -100,15 +113,16 @@ async fn load_native_trickplay(
                 height as u32,
             );
             let mut image = vec![];
-            thumbnail
-                .write_to(&mut Cursor::new(&mut image), ImageFormat::Jpeg)
-                .unwrap();
-            Thumbnail {
+            if let Err(err) = thumbnail.write_to(&mut Cursor::new(&mut image), ImageFormat::Jpeg) {
+                warn!("Failed to encode trickplay thumbnail: {err}");
+                return None;
+            }
+            Some(Thumbnail {
                 timestamp: thumbnail_index * interval / 1000,
                 image: image.into(),
-            }
+            })
         })
-        .collect();
+        .collect::<Option<Vec<_>>>()?;
 
     Some(thumbnails)
 }

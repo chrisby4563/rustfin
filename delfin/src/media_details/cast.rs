@@ -1,5 +1,4 @@
-//! Besetzung auf der Detailseite: waagerechte Reihe mit runden Porträts,
-//! Name und Rolle.
+//! Cast on the detail page: horizontal row with circular portraits, names, and roles.
 
 use std::sync::Arc;
 
@@ -13,7 +12,7 @@ use crate::{
     library::media_carousel::scroll_by_wheel, tr,
 };
 
-/// Mehr zeigt auch die Jellyfin-Weboberfläche nicht sinnvoll an.
+/// The Jellyfin web UI does not usefully show more either.
 const MAX_PEOPLE: usize = 40;
 const AVATAR_SIZE: i32 = 96;
 const PERSON_WIDTH: i32 = 112;
@@ -51,8 +50,8 @@ impl Component for CastRow {
                 set_vscrollbar_policy: gtk::PolicyType::Never,
                 set_propagate_natural_height: true,
 
-                // Mausrad gehört der Seite, Shift+Rad scrollt die Reihe
-                // (wie bei den Reihen der Startseite).
+                // The mouse wheel belongs to the page; Shift+wheel scrolls the row
+                // (as with home page rows).
                 add_controller = gtk::EventControllerScroll {
                     set_flags: gtk::EventControllerScrollFlags::VERTICAL,
                     set_propagation_phase: gtk::PropagationPhase::Capture,
@@ -164,7 +163,7 @@ impl Component for CastRow {
     }
 }
 
-/// Personen, die in die Besetzungsreihe gehören: Regie und Drehbuch zuerst,
+/// People that belong in the cast row: director and writer first,
 /// dann Darsteller in Server-Reihenfolge (Hauptrollen vorn).
 pub(crate) fn cast_people(people: &[BaseItemPerson]) -> Vec<BaseItemPerson> {
     let rank = |person: &BaseItemPerson| match person.type_ {

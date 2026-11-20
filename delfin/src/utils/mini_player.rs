@@ -1,6 +1,6 @@
-//! Mini-Player: das Delfin-Fenster klein in die Ecke, schwebend und über
-//! allem angeheftet. Wayland erlaubt Apps das nicht selbst; unter Hyprland
-//! geht es über `hyprctl` (Lua-Dispatcher, Hyprland ≥ 0.55).
+//! Mini player: the Delfin window is small, floating in a corner, and pinned
+//! above everything. Wayland does not permit applications to do this directly;
+//! under Hyprland it uses `hyprctl` (Lua dispatcher, Hyprland ≥ 0.55).
 
 use std::{process::Command, sync::Mutex};
 
@@ -11,7 +11,7 @@ const WIDTH: i64 = 768;
 const HEIGHT: i64 = 432;
 const MARGIN: i64 = 20;
 
-/// Zustand vor dem Mini-Modus, zum Zurückstellen.
+/// State before mini mode, for restoring.
 struct Saved {
     address: String,
     was_floating: bool,
@@ -21,7 +21,7 @@ struct Saved {
 
 static SAVED: Mutex<Option<Saved>> = Mutex::new(None);
 
-/// Läuft Delfin unter Hyprland?
+/// Is Delfin running under Hyprland?
 pub fn available() -> bool {
     std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_some()
 }
@@ -53,7 +53,7 @@ fn pair(value: &Value) -> (i64, i64) {
     )
 }
 
-/// Eigenes Fenster (über die Prozess-ID) und Monitor finden.
+/// Find the application's window (by process ID) and monitor.
 fn own_window() -> Option<Value> {
     let pid = std::process::id() as i64;
     hyprctl_json("clients")?
@@ -122,7 +122,7 @@ pub fn enter() {
     ));
 }
 
-/// Zurück zur vorherigen Größe und Lage.
+/// Restore the previous size and position.
 pub fn leave() {
     let Some(saved) = SAVED.lock().ok().and_then(|mut s| s.take()) else {
         return;

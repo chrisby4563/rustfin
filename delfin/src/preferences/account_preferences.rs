@@ -76,7 +76,7 @@ pub fn page(auth: Auth, window: &adw::PreferencesWindow) -> adw::PreferencesPage
     server_group.add(&server_row);
     page.add(&server_group);
 
-    // Erreichbarkeit + Version (öffentlicher Endpunkt, ohne Anmeldedaten).
+    // Reachability and version (public endpoint, without credentials).
     gtk::glib::spawn_future_local({
         let api_client = api_client.clone();
         let server_row = server_row.clone();
@@ -173,7 +173,7 @@ pub fn page(auth: Auth, window: &adw::PreferencesWindow) -> adw::PreferencesPage
         }
     });
 
-    // Passwort ändern (wie im Jellyfin-Profil).
+    // Change password (as in the Jellyfin profile).
     let password_row = adw::ActionRow::builder()
         .title(tr!("prefs-account-password.title"))
         .subtitle(tr!("prefs-account-password.subtitle"))
@@ -187,7 +187,7 @@ pub fn page(auth: Auth, window: &adw::PreferencesWindow) -> adw::PreferencesPage
     password_row.add_suffix(&password_button);
     account_group.add(&password_row);
 
-    // Quick Connect: Code eines anderen Geräts freigeben.
+    // Quick Connect: approve another device's code.
     let qc_row = adw::ActionRow::builder()
         .title(tr!("prefs-account-qc.title"))
         .subtitle(tr!("prefs-account-qc.subtitle"))

@@ -65,7 +65,7 @@ impl SimpleComponent for Home {
         let widgets = view_output!();
         let sections_container = &widgets.sections_container;
 
-        // Konzept: großes Titelbild „Weiterschauen“ ganz oben.
+        // Design: a large “Continue Watching” hero image at the top.
         if crate::globals::CONFIG.read().general.home_hero {
             sections_container.append(&super::home_sections::hero::hero(init.api_client.clone()));
         }
@@ -118,7 +118,7 @@ impl Home {
                         .launch(HomeSectionMyMediaInit {
                             api_client: api_client.clone(),
                             user_views: user_views.clone(),
-                            // Konzept: immer als schlanke Knöpfe (die großen Bilder doppelten die Reiter).
+                            // Design: always use compact buttons (large images duplicated the tabs).
                             small: true,
                         })
                         .detach();

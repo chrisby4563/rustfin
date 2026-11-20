@@ -10,7 +10,10 @@ use crate::{
 
 pub static CONFIG: Lazy<SharedState<Config>> = Lazy::new(|| {
     let state = SharedState::new();
-    *state.write() = Config::new().expect("Failed to load config");
+    *state.write() = Config::new().unwrap_or_else(|err| {
+        tracing::error!("Failed to load configuration: {err}");
+        Config::default()
+    });
     state
 });
 
@@ -20,9 +23,9 @@ pub static SHIFT_STATE: Lazy<SharedState<ShiftState>> = Lazy::new(|| {
     state
 });
 
-/// Qualität, Version und Server-Tonspur des laufenden Streams.
+/// Quality, version, and server audio track of the current stream.
 pub static STREAM_SETTINGS: Lazy<SharedState<StreamSettings>> = Lazy::new(SharedState::new);
 
-/// Auf der Detailseite gewählte Version (Element-ID → MediaSource-ID).
+/// Version selected on the details page (item ID → media source ID).
 pub static SELECTED_VERSIONS: Lazy<SharedState<HashMap<Uuid, String>>> =
     Lazy::new(SharedState::new);

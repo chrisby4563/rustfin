@@ -60,7 +60,7 @@ impl Component for HomeSectionLatest {
 
         let user_views = user_views.filter_supported();
 
-        // In Jellyfin unter „Neueste“ ausgeblendete Bibliotheken überspringen.
+        // Skip libraries hidden under “Latest” in Jellyfin.
         let excluded = crate::utils::user_config::get_list("LatestItemsExcludes");
         for view in user_views {
             if excluded.contains(&view.id().to_string().replace('-', "").to_lowercase())

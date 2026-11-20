@@ -1,4 +1,4 @@
-//! Startseite: großes Titelbild „Weiterschauen“ (Konzept Startseite).
+//! Home page: large “Continue Watching” hero image (home page design).
 
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
@@ -17,7 +17,7 @@ const HERO_HEIGHT: i32 = 400;
 const HERO_MAX: usize = 5;
 
 struct Slot {
-    /// Zwei Bilder im Stapel: das neue wird hinten gefüllt, dann übergeblendet.
+    /// Two stacked images: fill the new one behind, then crossfade.
     stack: gtk::Stack,
     pictures: [gtk::Picture; 2],
     front: usize,
@@ -32,7 +32,7 @@ struct Slot {
     current: usize,
 }
 
-/// Baut das Titelbild. Bleibt unsichtbar, solange nichts zum Weiterschauen da ist.
+/// Builds the hero image. Stays hidden while there is nothing to continue watching.
 pub fn hero(api_client: Arc<ApiClient>) -> gtk::Widget {
     let overlay = gtk::Overlay::builder()
         .height_request(HERO_HEIGHT)
@@ -141,7 +141,7 @@ pub fn hero(api_client: Arc<ApiClient>) -> gtk::Widget {
         current: 0,
     }));
 
-    // Maus darüber: nicht weiterblättern.
+    // Mouse over it: do not advance.
     let motion = gtk::EventControllerMotion::new();
     motion.connect_enter({
         let slot = slot.clone();
@@ -153,7 +153,7 @@ pub fn hero(api_client: Arc<ApiClient>) -> gtk::Widget {
     });
     overlay.add_controller(motion);
 
-    // Alle 8 s zum nächsten Titel; endet, wenn die Startseite weg ist.
+    // Advance to the next title every 8 seconds; ends when the home page is gone.
     let weak = overlay.downgrade();
     gtk::glib::timeout_add_seconds_local(8, {
         let slot = slot.clone();
@@ -287,7 +287,7 @@ fn show(slot: &Rc<RefCell<Slot>>, index: usize) {
     let changed = s.current != index;
     s.current = index;
     if changed {
-        // Neues Bild hinten einsetzen und überblenden.
+        // Insert the new image behind and crossfade.
         let back = 1 - s.front;
         s.pictures[back].set_paintable(s.textures[index].as_ref());
         s.stack.set_visible_child(&s.pictures[back]);

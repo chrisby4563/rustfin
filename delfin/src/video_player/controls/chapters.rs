@@ -1,5 +1,5 @@
-//! Kapitel-Knopf im Player: Liste aller Kapitel mit Vorschaubild, Zeit und
-//! Name; ein Klick springt hin. Ohne Kapitel bleibt der Knopf verborgen.
+//! Player chapter button: list every chapter with preview, time, and name; a
+//! click seeks there. The button stays hidden without chapters.
 
 use std::{cell::RefCell, sync::Arc};
 

@@ -22,26 +22,26 @@ pub async fn get_next_playable_media(
     match media_type {
         BaseItemKind::Series => {
             let next = get_next_episode(api_client.clone(), media_id).await?;
-            // Jellyfin 12 liefert unter „Weiterschauen“ teils die Staffel statt
-            // der Folge (z. B. bei Disc-Abbildern). Eine Staffel ist nicht
-            // abspielbar – dann deren nächste Folge nehmen.
+            // Jellyfin 12 sometimes returns the season instead of the episode
+            // under “Continue Watching” (e.g. for disc images). A season cannot
+            // be played, so use its next episode.
             if next.type_ == Some(BaseItemKind::Season) {
                 get_next_episode_in_season(api_client, &next).await
             } else {
                 Some(next)
             }
         }
-        // Eine Staffel ist nur ein Ordner ohne eigene Videodatei. Jellyfin 12
-        // zeigt Staffeln z. B. unter „Neueste“; direkt abgespielt antwortet der
-        // Server mit 400 („Season … has no media sources“) und der Player
+        // A season is only a folder without its own video file. Jellyfin 12
+        // shows seasons under “Latest”, for example; when played directly the
+        // server responds with 400 (“Season … has no media sources”) and the player
         // bleibt schwarz bei 00:00.
         BaseItemKind::Season => get_next_episode_in_season(api_client, &media).await,
         _ => Some(media),
     }
 }
 
-/// Nächste Folge innerhalb einer Staffel: eine angefangene, sonst die erste
-/// ungesehene, sonst (alles gesehen) die erste Folge der Staffel.
+/// Next episode within a season: a started one, otherwise the first unplayed
+/// one, otherwise (all watched) the season's first episode.
 pub async fn get_next_episode_in_season(
     api_client: Arc<ApiClient>,
     season: &BaseItemDto,
