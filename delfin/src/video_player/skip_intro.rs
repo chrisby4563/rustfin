@@ -138,7 +138,16 @@ impl AsyncComponent for SkipIntro {
         match message {
             SkipIntroInput::Load(id, api_client) => {
                 self.segments = match api_client.get_skip_segments(&id).await {
-                    Ok(segments) => segments,
+                    Ok(segments) => {
+                        tracing::info!(
+                            "Media segments for {id}: {:?}",
+                            segments
+                                .iter()
+                                .map(|s| (s.kind, s.start as u32, s.end as u32))
+                                .collect::<Vec<_>>()
+                        );
+                        segments
+                    }
                     Err(err) => {
                         warn!("Error getting media segments for {id}: {err:#?}");
                         Vec::new()
