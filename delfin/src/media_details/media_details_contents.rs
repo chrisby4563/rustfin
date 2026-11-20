@@ -13,13 +13,11 @@ use uuid::Uuid;
 use crate::{
     jellyfin_api::api_client::ApiClient,
     media_details::{media_details_header::MediaDetailsHeaderInit, seasons::SeasonsInit},
-    utils::display_years::DisplayYears,
 };
 
 use super::{
     media_details_header::{MediaDetailsHeader, MediaDetailsHeaderInput, MediaDetailsHeaderOutput},
     cast::{cast_people, CastRow},
-    run_time::RunTime,
     seasons::{Seasons, SeasonsOutput},
 };
 
@@ -54,7 +52,7 @@ impl AsyncComponent for MediaDetailsContents {
             set_spacing: 16,
 
             adw::Clamp {
-                set_maximum_size: 500,
+                set_maximum_size: 1100,
                 set_margin_bottom: 32,
                 set_margin_start: 12,
                 set_margin_end: 12,
@@ -64,23 +62,6 @@ impl AsyncComponent for MediaDetailsContents {
                     set_orientation: gtk::Orientation::Vertical,
                     set_spacing: 16,
 
-                    #[name = "info_box"]
-                    gtk::Box {
-                        set_orientation: gtk::Orientation::Horizontal,
-                        set_halign: gtk::Align::Center,
-                        set_spacing: 8,
-                    },
-                    #[name = "genre_label"]
-                    gtk::Label {
-                        set_halign: gtk::Align::Start,
-                        set_wrap: true,
-                    },
-
-                    gtk::Label::new(model.item.overview.as_deref()) {
-                        set_halign: gtk::Align::Fill,
-                        set_justify: gtk::Justification::Fill,
-                        set_wrap: true,
-                    },
                 }
             },
         }
@@ -141,8 +122,6 @@ impl AsyncComponent for MediaDetailsContents {
 
         let widgets = view_output!();
         let container = &widgets.container;
-        let info_box = &widgets.info_box;
-        let genre_label = &widgets.genre_label;
 
         let header = MediaDetailsHeader::builder()
             .launch(MediaDetailsHeaderInit {
@@ -154,12 +133,10 @@ impl AsyncComponent for MediaDetailsContents {
         root.prepend(header.widget());
         model.header.set(header).unwrap();
 
-        model.add_info(info_box, genre_label);
-
-        // Medieninfo nur bei Filmen (bei Serien gehört sie zur Folge).
+        // Film: Kapitel mit Vorschaubildern.
         if matches!(model.item.type_, Some(BaseItemKind::Movie)) {
-            if let Some(media_info) = super::media_info::media_info_widget(&model.item, false) {
-                container.append(&media_info);
+            if let Some(chapters) = chapters_section(&model.api_client, &model.item) {
+                container.append(&chapters);
             }
         }
 
@@ -228,72 +205,6 @@ impl MediaDetailsContents {
             self.seasons = Some(seasons);
         }
     }
-
-    fn add_info(&self, info_box: &gtk::Box, genre_label: &gtk::Label) {
-        let item = &self.item;
-
-        let mut first = true;
-
-        let mut add_separator = move |skip_separator: bool| {
-            if !first && !skip_separator {
-                info_box.append(&gtk::Separator::new(gtk::Orientation::Vertical));
-            }
-            first = false;
-        };
-
-        if let Some(display_years) = item.display_years() {
-            add_separator(true);
-            info_box.append(&gtk::Label::new(Some(display_years.as_ref())));
-        }
-
-        if let Some(community_rating) = item.community_rating {
-            add_separator(false);
-
-            let rating_box = gtk::Box::new(gtk::Orientation::Horizontal, 4);
-            rating_box.append(&gtk::Image::from_icon_name("star-large"));
-            rating_box.append(&gtk::Label::new(Some(
-                format!("{community_rating:.1}").as_ref(),
-            )));
-
-            info_box.append(&rating_box);
-        }
-
-        if let Some(BaseItemKind::Movie) = &item.type_ {
-            if let Some(run_time) = &item.run_time() {
-                add_separator(false);
-                info_box.append(&gtk::Label::new(Some(run_time)));
-            }
-        }
-
-        if let Some(official_rating) = &item.official_rating {
-            add_separator(false);
-            info_box.append(
-                &gtk::Label::builder()
-                    .label(official_rating)
-                    .css_classes(["official-rating"])
-                    .build(),
-            );
-        }
-
-        if let Some(genres) = &item.genres.clone() {
-            // Only show first 10 genres to avoid overflow
-            let mut genres_str: String = genres
-                .iter()
-                .take(10)
-                .cloned()
-                .collect::<Vec<String>>()
-                .join(", ");
-            if genres.len() > 10 {
-                genres_str += ", ...";
-            }
-            genre_label.set_label(&genres_str);
-
-            //let genres_label = &gtk::Label::new(Some(genres_str.as_ref()));
-            // Show full list in tooltip in case any were truncated
-            //genres_label.set_tooltip_text(Some(genres.clone().join(", ").as_str()));
-            //info_box.append(genres_label);
-        }
-    }
 }
 
 impl From<SeasonsOutput> for MediaDetailsContentsInput {
@@ -311,4 +222,85 @@ impl From<MediaDetailsHeaderOutput> for MediaDetailsContentsInput {
     fn from(_: MediaDetailsHeaderOutput) -> Self {
         Self::RefreshSeasons
     }
+}
+
+/// Kapitel eines Films als Reihe mit Vorschaubildern; Klick spielt ab der Stelle.
+fn chapters_section(api_client: &Arc<ApiClient>, item: &BaseItemDto) -> Option<gtk::Widget> {
+    let chapters = item.chapters.as_ref().filter(|c| c.len() > 1)?;
+    let item_id = item.id?;
+    let section = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    let heading = gtk::Label::builder()
+        .label(crate::tr!("media-details-chapters"))
+        .xalign(0.0)
+        .css_classes(["title-3"])
+        .build();
+    section.append(&heading);
+    let row = gtk::Box::new(gtk::Orientation::Horizontal, 14);
+    for (index, chapter) in chapters.iter().enumerate() {
+        let card = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        card.set_width_request(200);
+        let picture = gtk::Picture::builder()
+            .content_fit(gtk::ContentFit::Cover)
+            .width_request(200)
+            .height_request(112)
+            .overflow(gtk::Overflow::Hidden)
+            .css_classes(["episode-thumbnail"])
+            .build();
+        if let (Some(tag), Ok(url)) = (
+            chapter.image_tag.as_ref(),
+            api_client.get_chapter_image_url(&item_id, index, chapter.image_tag.as_deref().unwrap_or_default()),
+        ) {
+            let _ = tag;
+            let picture = picture.clone();
+            gtk::glib::spawn_future_local(async move {
+                let (tx, rx) = relm4::tokio::sync::oneshot::channel();
+                relm4::spawn(async move {
+                    let bytes = match reqwest::get(url).await {
+                        Ok(r) => r.bytes().await.ok().map(|b| b.to_vec()),
+                        Err(_) => None,
+                    };
+                    let _ = tx.send(bytes);
+                });
+                if let Ok(Some(bytes)) = rx.await {
+                    let bytes = gtk::glib::Bytes::from_owned(bytes);
+                    if let Ok(texture) = gtk::gdk::Texture::from_bytes(&bytes) {
+                        picture.set_paintable(Some(&texture));
+                    }
+                }
+            });
+        }
+        card.append(&picture);
+        let name = chapter.name.clone().unwrap_or_default();
+        card.append(
+            &gtk::Label::builder()
+                .label(&name)
+                .xalign(0.0)
+                .ellipsize(gtk::pango::EllipsizeMode::End)
+                .css_classes(["heading"])
+                .build(),
+        );
+        let seconds = chapter.start_position_ticks.unwrap_or(0) / 10_000_000;
+        let time = format!("{}:{:02}:{:02}", seconds / 3600, (seconds % 3600) / 60, seconds % 60);
+        card.append(&gtk::Label::builder().label(&time).xalign(0.0).css_classes(["dim-label", "caption"]).build());
+        let button = gtk::Button::builder().child(&card).css_classes(["flat", "chapter-card"]).build();
+        button.connect_clicked({
+            let item = item.clone();
+            let ticks = chapter.start_position_ticks.unwrap_or(0);
+            move |_| {
+                let mut item = item.clone();
+                if let Some(user_data) = item.user_data.as_mut() {
+                    user_data.playback_position_ticks = Some(ticks);
+                }
+                crate::app::APP_BROKER.send(crate::app::AppInput::PlayVideo(item));
+            }
+        });
+        row.append(&button);
+    }
+    let scroller = gtk::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk::PolicyType::Automatic)
+        .vscrollbar_policy(gtk::PolicyType::Never)
+        .child(&row)
+        .build();
+    section.append(&scroller);
+    Some(section.upcast())
 }

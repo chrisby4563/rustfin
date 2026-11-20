@@ -1,6 +1,6 @@
 use std::{fmt::Debug, path::PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use delfin::{
     app::{App, APP_BROKER},
     meson_config::{APP_ID, BUILDDIR, RESOURCES_FILE},
@@ -80,11 +80,10 @@ fn follow_desktop_theme() {
 fn load_resources() -> Result<()> {
     let res = match gio::Resource::load(RESOURCES_FILE) {
         Ok(res) => res,
-        Err(_) if cfg!(debug_assertions) => {
-            gio::Resource::load(PathBuf::from(BUILDDIR).join("data/resources.gresource"))
-                .context("Could not load fallback gresource file")?
-        }
-        Err(_) => bail!("Could not load gresource file"),
+        // Nicht installiert (Testbau direkt aus dem Projektordner): die
+        // Ressourcen aus dem Bauordner nehmen.
+        Err(_) => gio::Resource::load(PathBuf::from(BUILDDIR).join("data/resources.gresource"))
+            .context("Could not load gresource file")?,
     };
 
     gio::resources_register(&res);

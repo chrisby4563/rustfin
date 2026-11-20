@@ -58,3 +58,10 @@ media-details-media-info-subtitle-count = { $count ->
     [one] 1 subtitle
    *[other] { $count } subtitles
 }
+media-details-play-from-start = From the start
+media-details-ends-at = ends at { $time }
+media-details-season-count = { $count ->
+    [one] 1 season
+   *[other] { $count } seasons
+}
+media-details-chapters = Chapters

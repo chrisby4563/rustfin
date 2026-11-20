@@ -2,7 +2,7 @@
 # Baut den zuletzt committeten Stand aus dem lokalen Repo:
 #   cd ~/projects/delfin/packaging/arch && makepkg -si
 pkgname=delfin-chrisby
-pkgver=0
+pkgver=0.4.8.r467.g126ecca
 pkgrel=1
 pkgdesc="Jellyfin client (GTK4/mpv) – fork with SyncPlay, filters, chapters and more"
 arch=('x86_64')
