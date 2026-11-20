@@ -613,6 +613,9 @@ impl Component for VideoPlayer {
                 });
             }
             VideoPlayerInput::EndOfStream => {
+                // Ende: Gleichlauf-Anker gehört zum alten Titel.
+                self.syncplay_anchor = None;
+                self.syncplay_reset_speed();
                 match self.player_state {
                     PlayerState::Playing { paused: _ } => {}
                     _ => {

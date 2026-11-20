@@ -328,7 +328,7 @@ impl Component for App {
                     .as_ref()
                     .and_then(|d| d.playback_position_ticks)
                     .unwrap_or_default();
-                if crate::syncplay::intercept_play_video(item.id, start_ticks) {
+                if crate::syncplay::intercept_play_video(&item, start_ticks) {
                     return;
                 }
                 if let Some((last_id, at)) = self.last_play {

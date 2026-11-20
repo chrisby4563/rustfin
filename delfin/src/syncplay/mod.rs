@@ -25,9 +25,11 @@ use serde_json::{json, Value};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{info, warn};
+use jellyfin_api::types::{BaseItemDto, BaseItemKind};
 use uuid::Uuid;
 
 use crate::{
+    jellyfin_api::api::shows::GetEpisodesOptionsBuilder,
     app::{AppInput, APP_BROKER},
     jellyfin_api::api_client::ApiClient,
     tr,
@@ -75,6 +77,11 @@ struct Inner {
     created_by_us: bool,
     /// Titel, der gerade im Player läuft.
     local_item: Option<Uuid>,
+    /// Zuletzt vom Server gestarteter Titel (Titel, Zeit ms). Endet die Folge
+    /// auf zwei Geräten fast gleichzeitig, soll die nächste nur einmal starten.
+    last_queue: Option<(Uuid, i64)>,
+    /// Nächster Titel in der Warteschlange der Gruppe (für `NextItem`).
+    queue_next: Option<Uuid>,
     /// Startstelle (Sekunden) für den nächsten vom Server gestarteten Titel.
     pending_start: Option<f64>,
 }
@@ -164,23 +171,66 @@ pub fn take_pending_start() -> Option<f64> {
 
 /// Soll ein `PlayVideo` direkt spielen? Bei aktiver Gruppe nicht – dann geht
 /// der Titel als neue Warteschlange an den Server.
-pub fn intercept_play_video(item_id: Option<Uuid>, start_ticks: i64) -> bool {
+pub fn intercept_play_video(item: &BaseItemDto, start_ticks: i64) -> bool {
     if ALLOW_NEXT_PLAY.swap(false, Ordering::SeqCst) || !in_group() {
         return false;
     }
-    let Some(item_id) = item_id else {
+    let Some(item_id) = item.id else {
         return false;
     };
-    spawn_request(
-        "SyncPlay/SetNewQueue",
-        json!({
-            "PlayingQueue": [item_id.to_string()],
+    if let Some((queued, at)) = inner().last_queue {
+        if queued == item_id && now_ms() - at < 20_000 {
+            info!("SyncPlay: {item_id} already queued for the group");
+            return true;
+        }
+    }
+    // Nächste Folge der Gruppen-Warteschlange: der Server schaltet alle weiter.
+    let current = inner().playlist_item_id.clone();
+    if inner().queue_next == Some(item_id) {
+        if let Some(current) = current {
+            spawn_request("SyncPlay/NextItem", json!({ "PlaylistItemId": current }));
+            return true;
+        }
+    }
+
+    // Folge: Rest der Serie ab hier als Warteschlange, damit alle Geräte
+    // (auch die Weboberfläche) am Ende gemeinsam weiterschalten.
+    let series_id = item
+        .series_id
+        .filter(|_| matches!(item.type_, Some(BaseItemKind::Episode)));
+    relm4::spawn(async move {
+        let mut queue = vec![item_id];
+        let api_client = inner().api_client.clone();
+        if let (Some(series_id), Some(api_client)) = (series_id, api_client) {
+            let options = GetEpisodesOptionsBuilder::default()
+                .series_id(series_id)
+                .is_missing(false)
+                .is_virtual_unaired(false)
+                .build();
+            if let Ok(options) = options {
+                if let Ok(episodes) = api_client.get_episodes(&options).await {
+                    let ids: Vec<Uuid> = episodes.iter().filter_map(|e| e.id).collect();
+                    if let Some(index) = ids.iter().position(|id| *id == item_id) {
+                        queue = ids[index..].iter().take(QUEUE_MAX).copied().collect();
+                    }
+                }
+            }
+        }
+        info!("SyncPlay: new queue with {} item(s)", queue.len());
+        let body = json!({
+            "PlayingQueue": queue.iter().map(Uuid::to_string).collect::<Vec<_>>(),
             "PlayingItemPosition": 0,
             "StartPositionTicks": start_ticks,
-        }),
-    );
+        });
+        if let Err(error) = post("SyncPlay/SetNewQueue", body).await {
+            warn!("SyncPlay SetNewQueue failed: {error:#}");
+        }
+    });
     true
 }
+
+/// Höchstzahl Folgen in der Gruppen-Warteschlange.
+const QUEUE_MAX: usize = 50;
 
 /// Play/Pause vom Nutzer. `true` = von SyncPlay übernommen.
 pub fn intercept_play(playing: bool) -> bool {
@@ -371,6 +421,9 @@ pub async fn connect() -> Result<()> {
     }
     let (mut write, mut read) = stream.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
+    // Gilt, solange diese Verbindung lebt; beendet die Lebenszeichen-Schleife
+    // (die hält sonst den Sender fest und damit auch die Schreib-Schleife).
+    let alive = std::sync::Arc::new(AtomicBool::new(true));
     inner().ws_tx = Some(tx.clone());
 
     // Schreiben
@@ -383,7 +436,9 @@ pub async fn connect() -> Result<()> {
     });
 
     // Lesen
-    relm4::spawn(async move {
+    relm4::spawn({
+    let alive = alive.clone();
+    async move {
         while let Some(message) = read.next().await {
             match message {
                 Ok(Message::Text(text)) => handle_message(&text).await,
@@ -392,12 +447,15 @@ pub async fn connect() -> Result<()> {
             }
         }
         warn!("SyncPlay: WebSocket closed");
+        alive.store(false, Ordering::SeqCst);
         inner().ws_tx = None;
-        if GROUP.read().is_some() {
+        let rejoin = GROUP.read().as_ref().map(|group| group.id.clone());
+        if let Some(group_id) = rejoin {
             *GROUP.write() = None;
-            toast(tr!("syncplay-disconnected").to_string());
+            toast(tr!("syncplay-reconnecting").to_string());
+            relm4::spawn(reconnect(group_id));
         }
-    });
+    }});
 
     // Lebenszeichen und regelmäßiger Uhrenabgleich
     relm4::spawn({
@@ -406,7 +464,7 @@ pub async fn connect() -> Result<()> {
             let mut tick: u64 = 0;
             loop {
                 tokio::time::sleep(Duration::from_secs(30)).await;
-                if tx.is_closed() {
+                if tx.is_closed() || !alive.load(Ordering::SeqCst) {
                     break;
                 }
                 let _ = tx.send(Message::Text(
@@ -422,6 +480,41 @@ pub async fn connect() -> Result<()> {
 
     sync_time().await?;
     Ok(())
+}
+
+/// Nach einem Verbindungsabbruch (WLAN-Wechsel, Standby) der Gruppe wieder
+/// beitreten. Versucht es mit wachsenden Abständen (2 … 30 s) höchstens
+/// 10 Minuten lang; tritt man vorher selbst einer Gruppe bei, endet es.
+///
+/// Als geboxte `Send`-Future: `connect` startet `reconnect`, `reconnect` ruft
+/// `connect` – ohne feste Typangabe kann der Compiler `Send` nicht ableiten.
+fn reconnect(
+    group_id: String,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
+    Box::pin(reconnect_loop(group_id))
+}
+
+async fn reconnect_loop(group_id: String) {
+    let deadline = now_ms() + 10 * 60 * 1000;
+    let mut delay = 2;
+    loop {
+        tokio::time::sleep(Duration::from_secs(delay)).await;
+        if in_group() {
+            return;
+        }
+        match join_group(&group_id).await {
+            Ok(()) => {
+                info!("SyncPlay: reconnected, rejoined group");
+                return;
+            }
+            Err(error) => warn!("SyncPlay: reconnect failed: {error:#}"),
+        }
+        if now_ms() > deadline {
+            toast(tr!("syncplay-disconnected").to_string());
+            return;
+        }
+        delay = (delay * 2).min(30);
+    }
 }
 
 /// Abstand zur Server-Uhr messen (NTP-artig, beste von 5 Messungen).
@@ -581,6 +674,11 @@ async fn handle_play_queue(queue: &Value) {
         return;
     };
     inner().playlist_item_id = entry["PlaylistItemId"].as_str().map(String::from);
+    inner().queue_next = queue["Playlist"]
+        .as_array()
+        .and_then(|playlist| playlist.get(usize::try_from(index + 1).ok()?))
+        .and_then(|next| next["ItemId"].as_str())
+        .and_then(|id| Uuid::parse_str(id).ok());
 
     if !matches!(
         reason,
@@ -599,6 +697,7 @@ async fn handle_play_queue(queue: &Value) {
     info!("SyncPlay queue ({reason}): {item_id} from {start_seconds:.1}s");
 
     // Läuft der Titel schon: nur an die Stelle und bereit melden.
+    inner().last_queue = Some((item_id, now_ms()));
     if inner().local_item == Some(item_id) {
         VIDEO_PLAYER_BROKER.send(VideoPlayerInput::SyncPlayPrepare(start_seconds));
         return;
