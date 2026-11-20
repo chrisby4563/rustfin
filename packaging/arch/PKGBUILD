@@ -2,7 +2,7 @@
 # Baut den zuletzt committeten Stand aus dem lokalen Repo:
 #   cd ~/projects/delfin/packaging/arch && makepkg -si
 pkgname=delfin-chrisby
-pkgver=0.4.8.r467.g126ecca
+pkgver=0.4.8.r473.g48dbddb
 pkgrel=1
 pkgdesc="Jellyfin client (GTK4/mpv) – fork with SyncPlay, filters, chapters and more"
 arch=('x86_64')
@@ -30,10 +30,13 @@ prepare() {
 
 build() {
   export RUSTUP_TOOLCHAIN=stable
-  arch-meson delfin build -Dprofile=release
-  meson compile -C build
+  # Bauordner INNERHALB des Klons: cargo sucht Cargo.toml von dort aufwärts
+  # und würde sonst den Arbeitsordner ~/projects/delfin übersetzen.
+  cd delfin
+  arch-meson . _pkgbuild -Dprofile=release
+  meson compile -C _pkgbuild
 }
 
 package() {
-  meson install -C build --destdir "$pkgdir"
+  meson install -C delfin/_pkgbuild --destdir "$pkgdir"
 }
