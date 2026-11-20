@@ -41,7 +41,7 @@ impl AsyncComponent for Episodes {
 
             #[name = "episode_list"]
             gtk::ListBox {
-                add_css_class: "boxed-list",
+                add_css_class: "episode-cards",
                 set_selection_mode: gtk::SelectionMode::None,
             },
 

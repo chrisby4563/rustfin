@@ -17,8 +17,12 @@ impl SimpleComponent for SeasonButtons {
     view! {
         gtk::FlowBox {
             add_css_class: "seasons-box",
-            set_homogeneous: true,
-            set_halign: gtk::Align::Fill,
+            set_homogeneous: false,
+            set_halign: gtk::Align::Start,
+            set_selection_mode: gtk::SelectionMode::None,
+            set_column_spacing: 8,
+            set_row_spacing: 8,
+            set_max_children_per_line: 20,
         }
     }
 
@@ -122,7 +126,7 @@ fn create_season_btn(season: &BaseItemDto) -> gtk::ToggleButton {
         .unwrap_or(tr!("media-details-unnamed-season").to_string());
 
     btn_contents.set_child(Some(
-        &gtk::Label::builder().label(name).hexpand(true).build(),
+        &gtk::Label::builder().label(name).build(),
     ));
 
     if let Some(user_data) = &season.user_data {
@@ -146,5 +150,8 @@ fn create_season_btn(season: &BaseItemDto) -> gtk::ToggleButton {
         }
     }
 
-    gtk::ToggleButton::builder().child(&btn_contents).build()
+    gtk::ToggleButton::builder()
+        .child(&btn_contents)
+        .css_classes(["season-pill"])
+        .build()
 }

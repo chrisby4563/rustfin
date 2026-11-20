@@ -80,10 +80,30 @@
     border-radius: 4px;
   }
 
+  // Konzept: Staffeln als runde Reiter.
   .seasons-box {
-    background: "@headerbar_bg_color";
-    padding: 2px;
-    border-radius: 8px;
+    background: none;
+    padding: 0;
+
+    flowboxchild {
+      padding: 0;
+      background: none;
+    }
+
+    .season-pill {
+      min-height: 40px;
+      padding: 0 16px;
+      border-radius: 999px;
+      font-weight: 600;
+      background: none;
+      border: 1px solid unquote("alpha(@window_fg_color, 0.25)");
+
+      &:checked {
+        background: unquote("@window_fg_color");
+        color: unquote("@window_bg_color");
+        border-color: unquote("@window_fg_color");
+      }
+    }
 
     .season-unplayed-indicator {
       background: "@accent_bg_color";
@@ -92,7 +112,33 @@
   }
 
   .episode-thumbnail {
-    border-radius: 6px;
+    border-radius: 8px;
+  }
+
+  // Konzept: Folgen als Karten.
+  .episode-cards {
+    background: none;
+
+    > row {
+      background: unquote("@card_bg_color");
+      border: 1px solid unquote("alpha(@window_fg_color, 0.12)");
+      border-radius: 10px;
+      margin-bottom: 10px;
+      padding: 4px 6px;
+    }
+    > row:hover {
+      background: unquote("alpha(@window_fg_color, 0.06)");
+    }
+  }
+
+  .episode-progress {
+    trough, progress {
+      min-height: 4px;
+      border-radius: 0;
+    }
+    progress {
+      background: unquote("@accent_bg_color");
+    }
   }
 
   .episode-unplayed-indicator {

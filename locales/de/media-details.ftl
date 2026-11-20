@@ -67,3 +67,4 @@ media-details-season-count = { $count ->
    *[other] { $count } Staffeln
 }
 media-details-chapters = Kapitel
+media-details-episode-remaining = noch { $minutes } min

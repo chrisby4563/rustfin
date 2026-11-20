@@ -2,12 +2,9 @@ use std::{cell::OnceCell, collections::VecDeque, sync::Arc};
 
 use adw::prelude::*;
 use gdk::Texture;
-use gtk::{gdk, gdk_pixbuf};
+use gtk::gdk;
 use jellyfin_api::types::BaseItemDto;
-use relm4::{
-    gtk::gdk_pixbuf::{InterpType, Pixbuf},
-    prelude::*,
-};
+use relm4::prelude::*;
 
 use crate::{
     app::{AppInput, APP_BROKER},
@@ -19,7 +16,9 @@ use crate::{
 
 use super::{watched_state::toggle_watched, MediaDetailsInput, MEDIA_DETAILS_BROKER};
 
-const EPISODE_THUMBNAIL_SIZE: i32 = 75;
+/// Folgenkarte: Vorschaubild 16:9.
+const EPISODE_THUMB_W: i32 = 200;
+const EPISODE_THUMB_H: i32 = 112;
 
 pub(crate) struct Episode {
     media: BaseItemDto,
@@ -53,12 +52,9 @@ impl AsyncComponent for Episode {
             set_title_lines: 1,
             set_use_markup: false,
 
-            set_subtitle: if let Some(overview) = &model.media.overview {
-                // Limit description to first paragraph, otherwise ActionRow
-                // doesn't ellipsize the text properly
-                overview.split_once('\n').unwrap_or((overview, "")).0
-            } else { "" },
-            set_subtitle_lines: 3,
+            // Erste Zeile: Laufzeit / Rest, dann erster Absatz der Beschreibung.
+            set_subtitle: &episode_subtitle(&model.media),
+            set_subtitle_lines: 4,
 
             #[watch]
             set_visible: !model.hidden,
@@ -281,6 +277,7 @@ impl AsyncComponent for Episode {
 struct EpisodeThumbnail {
     media: BaseItemDto,
     thumbnail: Option<Texture>,
+    progress: f64,
 }
 #[derive(Debug)]
 enum EpisodeThumbnailCommandOutput {
@@ -297,19 +294,25 @@ impl Component for EpisodeThumbnail {
     view! {
         gtk::Box {
             gtk::Overlay {
-                set_margin_top: 8,
-                set_margin_bottom: 8,
+                set_margin_top: 6,
+                set_margin_bottom: 6,
+                set_margin_end: 6,
+                set_overflow: gtk::Overflow::Hidden,
+                add_css_class: "episode-thumbnail",
 
                 gtk::Picture {
                     #[watch]
                     set_paintable: model.thumbnail.as_ref(),
-
-                    add_css_class: "episode-thumbnail",
-                    set_halign: gtk::Align::Center,
-                    set_valign: gtk::Align::Center,
-                    set_width_request: EPISODE_THUMBNAIL_SIZE,
-                    set_height_request: EPISODE_THUMBNAIL_SIZE,
+                    set_size_request: (EPISODE_THUMB_W, EPISODE_THUMB_H),
                     set_content_fit: gtk::ContentFit::Cover,
+                },
+
+                // Fortschritt als Akzentbalken unten.
+                add_overlay = &gtk::ProgressBar {
+                    set_fraction: model.progress,
+                    set_visible: model.progress > 0.0,
+                    set_valign: gtk::Align::End,
+                    add_css_class: "episode-progress",
                 },
 
                 add_overlay = &gtk::Box {
@@ -346,24 +349,31 @@ impl Component for EpisodeThumbnail {
         let (media, api_client) = init;
 
         if let Ok(img_url) =
-            api_client.get_episode_primary_image_url(&media, EPISODE_THUMBNAIL_SIZE)
+            api_client.get_episode_primary_image_url(&media, EPISODE_THUMB_H * 2)
         {
             sender.oneshot_command(async {
-                let img_bytes: VecDeque<u8> = reqwest::get(img_url)
-                    .await
-                    .expect("Error getting media tile image: {img_url}")
-                    .bytes()
-                    .await
-                    .expect("Error getting media tile image bytes: {img_url}")
-                    .into_iter()
-                    .collect();
+                let img_bytes: VecDeque<u8> = match reqwest::get(img_url).await {
+                    Ok(response) => response
+                        .bytes()
+                        .await
+                        .map(|b| b.into_iter().collect())
+                        .unwrap_or_default(),
+                    Err(_) => VecDeque::new(),
+                };
                 EpisodeThumbnailCommandOutput::LoadThumbnail(img_bytes)
             });
         }
 
+        let progress = media
+            .user_data
+            .as_ref()
+            .and_then(|d| if d.played.unwrap_or(false) { Some(100.0) } else { d.played_percentage })
+            .map(|p| (p / 100.0).clamp(0.0, 1.0))
+            .unwrap_or(0.0);
         let model = Self {
             media,
             thumbnail: None,
+            progress,
         };
 
         let widgets = view_output!();
@@ -379,36 +389,10 @@ impl Component for EpisodeThumbnail {
     ) {
         match message {
             EpisodeThumbnailCommandOutput::LoadThumbnail(img_bytes) => {
-                let pixbuf = Pixbuf::from_read(img_bytes)
-                    .expect("Error creating media tile pixbuf: {img_url}");
-
-                // Resize image to match thumbnail widget size
-                // This makes widget sizing a bit less wonky
-                let resized = Pixbuf::new(
-                    gdk_pixbuf::Colorspace::Rgb,
-                    false,
-                    8,
-                    EPISODE_THUMBNAIL_SIZE,
-                    EPISODE_THUMBNAIL_SIZE,
-                )
-                .unwrap();
-
-                let offset_x = ((pixbuf.width() - EPISODE_THUMBNAIL_SIZE) / 2).abs() as f64;
-
-                pixbuf.scale(
-                    &resized,
-                    0,
-                    0,
-                    EPISODE_THUMBNAIL_SIZE,
-                    EPISODE_THUMBNAIL_SIZE,
-                    -offset_x,
-                    0.0,
-                    1.0,
-                    1.0,
-                    InterpType::Nearest,
-                );
-
-                self.thumbnail = Some(gdk::Texture::for_pixbuf(&resized));
+                let bytes = gtk::glib::Bytes::from_owned(Vec::from(img_bytes));
+                if let Ok(texture) = gdk::Texture::from_bytes(&bytes) {
+                    self.thumbnail = Some(texture);
+                }
             }
         }
     }
@@ -448,4 +432,32 @@ fn versions_list(item_id: uuid::Uuid, item: &BaseItemDto) -> gtk::Widget {
         list.append(&check);
     }
     list.upcast()
+}
+
+fn episode_subtitle(media: &BaseItemDto) -> String {
+    let mut meta: Vec<String> = Vec::new();
+    if let Some(ticks) = media.run_time_ticks {
+        meta.push(format!("{} min", ticks / 600_000_000));
+        let position = media
+            .user_data
+            .as_ref()
+            .and_then(|d| d.playback_position_ticks)
+            .unwrap_or(0);
+        if position > 0 && position < ticks {
+            meta.push(
+                tr!("media-details-episode-remaining", {"minutes" => (ticks - position) / 600_000_000})
+                    .to_string(),
+            );
+        }
+    }
+    let overview = media
+        .overview
+        .as_deref()
+        .map(|o| o.split_once('\n').map_or(o, |(first, _)| first))
+        .unwrap_or("");
+    match (meta.is_empty(), overview.is_empty()) {
+        (true, _) => overview.to_string(),
+        (false, true) => meta.join(" · "),
+        (false, false) => format!("{}\n{}", meta.join(" · "), overview),
+    }
 }
