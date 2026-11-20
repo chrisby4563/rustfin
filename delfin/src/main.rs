@@ -10,9 +10,21 @@ use relm4::{gtk, RelmApp};
 use tracing::log::LevelFilter;
 
 fn main() {
+    // Log lines never contain access tokens (stream URLs carry `ApiKey=`).
     env_logger::builder()
         .filter_level(LevelFilter::Warn)
         .parse_default_env()
+        .format(|buf, record| {
+            use std::io::Write;
+            writeln!(
+                buf,
+                "[{} {:<5} {}] {}",
+                buf.timestamp(),
+                record.level(),
+                record.target(),
+                delfin::utils::redact::redact(&record.args().to_string())
+            )
+        })
         .init();
 
     #[cfg(feature = "gst")]

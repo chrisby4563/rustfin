@@ -39,6 +39,29 @@ enum {
   SIGNAL_LAST,
 };
 
+/* Copy of `text` with access-token values (ApiKey=, api_key=) replaced by ***,
+ * so stream URLs in mpv's log never leak credentials. Free with g_free(). */
+static gchar *redact_tokens(const gchar *text) {
+  GString *out = g_string_new(text);
+  const gchar *keys[] = {"ApiKey=", "api_key="};
+  for (guint k = 0; k < G_N_ELEMENTS(keys); k++) {
+    gsize from = 0;
+    gchar *found;
+    while ((found = strstr(out->str + from, keys[k])) != NULL) {
+      gsize start = (found - out->str) + strlen(keys[k]);
+      gsize end = start;
+      while (end < out->len && out->str[end] != '&' && out->str[end] != ' ' &&
+             out->str[end] != '\n' && out->str[end] != '"' && out->str[end] != '\'') {
+        end++;
+      }
+      g_string_erase(out, start, end - start);
+      g_string_insert(out, start, "***");
+      from = start + 3;
+    }
+  }
+  return g_string_free(out, FALSE);
+}
+
 static guint signals[SIGNAL_LAST] = {
     0,
 };
@@ -168,7 +191,9 @@ gboolean process_events(gpointer data) {
       // Pufferleer, Hardware-Dekodierung). Debug-Meldungen bleiben stumm.
       mpv_event_log_message *msg = (mpv_event_log_message *)event->data;
       if (msg->log_level <= MPV_LOG_LEVEL_INFO) {
-        fprintf(stderr, "mpv [%s] %s: %s", msg->level, msg->prefix, msg->text);
+        gchar *text = redact_tokens(msg->text);
+        fprintf(stderr, "mpv [%s] %s: %s", msg->level, msg->prefix, text);
+        g_free(text);
       }
       break;
     }
