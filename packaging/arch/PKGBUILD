@@ -38,5 +38,5 @@ build() {
 }
 
 package() {
-  meson install -C delfin/_pkgbuild --destdir "$pkgdir"
+  meson install -C delfin/_pkgbuild --no-rebuild --destdir "$pkgdir"
 }
