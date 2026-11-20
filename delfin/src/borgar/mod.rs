@@ -1,3 +1,3 @@
 mod about;
 pub mod borgar_menu;
-mod sign_out_dialog;
+pub(crate) mod sign_out_dialog;

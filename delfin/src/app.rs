@@ -395,7 +395,12 @@ impl Component for App {
                 self.preferences = Some(
                     Preferences::builder()
                         .transient_for(root)
-                        .launch(())
+                        .launch(match (&self.api_client, &self.server, &self.account) {
+                            (Some(api_client), Some(server), Some(account)) => {
+                                Some((api_client.clone(), server.clone(), account.clone()))
+                            }
+                            _ => None,
+                        })
                         .detach(),
                 );
             }

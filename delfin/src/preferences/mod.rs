@@ -1,3 +1,4 @@
+mod account_preferences;
 mod general_preferences;
 mod video_player_preferences;
 
@@ -17,7 +18,7 @@ pub struct Preferences {
 
 #[relm4::component(pub)]
 impl SimpleComponent for Preferences {
-    type Init = ();
+    type Init = Option<(std::sync::Arc<crate::jellyfin_api::api_client::ApiClient>, crate::config::Server, crate::config::Account)>;
     type Input = ();
     type Output = ();
 
@@ -34,7 +35,7 @@ impl SimpleComponent for Preferences {
     }
 
     fn init(
-        _init: Self::Init,
+        init: Self::Init,
         root: Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
@@ -42,6 +43,9 @@ impl SimpleComponent for Preferences {
             general_preferences: GeneralPreferences::builder().launch(()).detach(),
             video_player_preferences: VideoPlayerPreferences::builder().launch(()).detach(),
         };
+        // Konzept: erste Seite „Server & Konto“ (nur angemeldet sichtbar).
+        let account_page = account_preferences::page(init, &root);
+        root.add(&account_page);
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }
