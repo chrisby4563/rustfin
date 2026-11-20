@@ -245,7 +245,7 @@ impl From<MediaDetailsHeaderOutput> for MediaDetailsContentsInput {
     }
 }
 
-/// Kapitel eines Films als Reihe mit Vorschaubildern; Klick spielt ab der Stelle.
+/// Movie chapters as a row with preview images; clicking plays from that position.
 fn chapters_section(api_client: &Arc<ApiClient>, item: &BaseItemDto) -> Option<gtk::Widget> {
     let chapters = item.chapters.as_ref().filter(|c| c.len() > 1)?;
     let item_id = item.id?;

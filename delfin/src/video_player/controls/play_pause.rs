@@ -29,9 +29,9 @@ pub enum PlayPauseInput {
     SetPlaying(bool),
     /// Vom Nutzer (z. B. Medientasten) – geht bei SyncPlay an den Server.
     UserSetPlaying(bool),
-    /// Player meldet seinen Zustand – nur Anzeige, kein Befehl zurück.
-    /// (Früher ging das als `SetPlaying` zurück an den Player und
-    /// überschrieb dabei z. B. eine gerade gesetzte SyncPlay-Pause.)
+    /// The player reports its state — display only, no command is sent back.
+    /// (Previously this returned as `SetPlaying` and could overwrite a newly
+    /// set SyncPlay pause.)
     StateChanged(bool),
     LeftClick,
     LeftClickTimeout,

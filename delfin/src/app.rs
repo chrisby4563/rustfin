@@ -70,8 +70,8 @@ pub struct App {
     server: Option<config::Server>,
     account: Option<config::Account>,
     preferences: Option<Controller<Preferences>>,
-    /// Zuletzt gestartetes Element und wann – fängt Doppelklicks ab, die
-    /// sonst zweimal abspielten („Page … is already in navigation stack“).
+    /// Most recently started item and time — prevents double-clicks from
+    /// playing twice (“Page … is already in navigation stack”).
     last_play: Option<(Option<uuid::Uuid>, std::time::Instant)>,
 }
 

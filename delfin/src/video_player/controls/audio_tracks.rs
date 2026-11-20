@@ -41,7 +41,7 @@ pub struct AudioTracks {
     /// Vom Server umgewandelter Stream: Spuren kommen vom Server, ein Wechsel
     /// fordert den Stream neu an (statt mpv-Spur umzuschalten).
     server_mode: Rc<Cell<bool>>,
-    /// Beim Setzen der Vorauswahl keinen Spurwechsel auslösen.
+    /// Do not switch tracks while setting the preselection.
     suppress_switch: Rc<Cell<bool>>,
 }
 
@@ -56,8 +56,8 @@ pub enum AudioTracksInput {
 
 #[derive(Debug)]
 pub enum AudioTracksCommandOutput {
-    /// (Server-Index, Name), die ausgewählte Spur, und ob dorthin gewechselt
-    /// werden muss (Server-Vorauswahl war nicht die bevorzugte Sprache).
+    /// (server index, name), the selected track, and whether it must be switched
+    /// to (the server preselection was not the preferred language).
     ServerTracksLoaded(Vec<(i32, String)>, Option<i32>, bool),
 }
 
@@ -161,7 +161,7 @@ impl Component for AudioTracks {
                     .append_section(Some(tr!("vp-audio-track-menu")), &menu);
                 self.audio_tracks_available = true;
 
-                // Vorauswahl setzen, ohne einen Wechsel auszulösen.
+                // Set the preselection without triggering a switch.
                 let selected = default.or(tracks.first().map(|(index, _)| *index));
                 self.suppress_switch.set(true);
                 let _ = root.activate_action(
@@ -212,7 +212,7 @@ impl Component for AudioTracks {
                             None => info.media_sources.into_iter().next(),
                         };
                         let default = source.as_ref().and_then(|s| s.default_audio_stream_index);
-                        // Schon gewählte Spur (nach Qualitätswechsel): beibehalten.
+                        // Already selected track (after a quality change): retain it.
                         if let Some(chosen) = settings.audio_stream_index {
                             let tracks = source
                                 .and_then(|s| s.media_streams)
@@ -240,8 +240,8 @@ impl Component for AudioTracks {
                             .filter(|stream| stream.type_ == Some(MediaStreamType::Audio))
                             .collect();
 
-                        // Bevorzugte Sprache: Spricht die vom Server gewählte
-                        // Spur sie nicht, aber eine andere, dorthin wechseln.
+                        // Preferred language: if the server-selected track does
+                        // not speak it but another does, switch to that track.
                         let preferred = CONFIG.read().video_player.preferred_audio_language_list();
                         let lang_rank = |stream: &jellyfin_api::types::MediaStream| {
                             let lang = stream.language.clone().unwrap_or_default().to_lowercase();

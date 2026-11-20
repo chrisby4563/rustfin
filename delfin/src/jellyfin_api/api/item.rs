@@ -7,13 +7,13 @@ use crate::{
     utils::device_profile::DEVICE_PROFILE_DIRECT_PLAY,
 };
 
-/// Qualitätsstufe im Player.
+/// Player quality level.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StreamQuality {
-    /// Direkt abspielen; Disc-Abbilder und 4K wandelt der Server auf 1080p.
+    /// Play directly; the server converts disc images and 4K to 1080p.
     #[default]
     Auto,
-    /// Immer die Originaldatei.
+    /// Always use the original file.
     Original,
     P1080,
     P720,
@@ -29,7 +29,7 @@ impl StreamQuality {
         StreamQuality::P480,
     ];
 
-    /// (Bitrate, Breite, Höhe) für die Server-Umwandlung.
+    /// (Bitrate, width, height) for server conversion.
     fn transcode_limits(&self) -> (u32, u32, u32) {
         match self {
             StreamQuality::P720 => (8_000_000, 1280, 720),
@@ -39,17 +39,17 @@ impl StreamQuality {
     }
 }
 
-/// Wie der laufende Stream angefordert wird.
+/// How the current stream is requested.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct StreamSettings {
     pub quality: StreamQuality,
-    /// Gewählte Version (MediaSource-ID); `None` = Standard.
+    /// Selected version (media source ID); `None` = default.
     pub media_source_id: Option<String>,
     /// Tonspur bei Server-Umwandlung; `None` = Server-Standard.
     pub audio_stream_index: Option<i32>,
 }
 
-/// Ist das ein Disc-Abbild? Das lässt sich nicht als Datei abspielen.
+/// Is this a disc image? It cannot be played as a file.
 pub fn is_disc(item: &BaseItemDto) -> bool {
     matches!(
         item.video_type,
@@ -58,7 +58,7 @@ pub fn is_disc(item: &BaseItemDto) -> bool {
 }
 
 impl ApiClient {
-    /// Wandelt der Server mit diesen Einstellungen um?
+    /// Does the server convert using these settings?
     pub fn is_transcoded(item: &BaseItemDto, settings: &StreamSettings) -> bool {
         match settings.quality {
             StreamQuality::Auto => Self::is_server_transcoded_source(item, settings),
@@ -67,7 +67,7 @@ impl ApiClient {
         }
     }
 
-    /// Automatik-Regel, mit der Bildgröße der gewählten Version, falls bekannt.
+    /// Automatic rule, using the selected version's image size when known.
     fn is_server_transcoded_source(item: &BaseItemDto, settings: &StreamSettings) -> bool {
         let source_width = settings.media_source_id.as_ref().and_then(|id| {
             item.media_sources
@@ -86,7 +86,7 @@ impl ApiClient {
         }
     }
 
-    /// Stream-Adresse nach Qualität, Version und Tonspur.
+    /// Stream URL by quality, version, and audio track.
     pub fn stream_url(&self, item: &BaseItemDto, settings: &StreamSettings) -> String {
         let item_id = item.id.unwrap();
         let source_id = settings
@@ -111,15 +111,15 @@ impl ApiClient {
             .append_pair("VideoCodec", "h264,hevc")
             .append_pair("AudioCodec", "aac,mp3,ac3,eac3")
             .append_pair("SegmentContainer", "ts")
-            // Nicht nur umpacken lassen: Disc-Video ist oft feldkodiert
-            // (PAFF), damit ruckelt die Intel-Hardwaredekodierung. Der Server
-            // kodiert neu (NVENC, mit Deinterlacing) wie für den Browser.
+            // Do not merely remux: disc video is often field-coded (PAFF),
+            // which stutters with Intel hardware decoding. The server
+            // re-encodes it (NVENC, with deinterlacing) as it does for browsers.
             .append_pair("AllowVideoStreamCopy", "false")
             .append_pair("VideoBitrate", &bitrate.to_string())
             .append_pair("MaxWidth", &max_width.to_string())
             .append_pair("MaxHeight", &max_height.to_string())
-            // Neue Sitzung je Anfrage, sonst liefert der Server beim
-            // Spurwechsel die alten, schon umgewandelten Abschnitte.
+            // Use a new session per request; otherwise, switching tracks makes
+            // the server return previously converted segments.
             .append_pair("PlaySessionId", &Uuid::new_v4().simple().to_string())
             .append_pair("ApiKey", &self.account.access_token);
         if let Some(index) = settings.audio_stream_index {
@@ -130,13 +130,13 @@ impl ApiClient {
     }
 
     /// Wird dieses Element vom Server umgewandelt (statt als Datei geliefert)?
-    /// Dann enthält der Stream nur eine Tonspur; ein Wechsel braucht einen
-    /// neuen Stream mit `AudioStreamIndex`.
+    /// The stream then contains only one audio track; switching requires a
+    /// new stream with `AudioStreamIndex`.
     pub fn is_server_transcoded(item: &BaseItemDto) -> bool {
         let is_disc = is_disc(item);
         // 4K (meist HEVC 10 Bit HDR/Dolby Vision): Die Laptop-Grafik (UHD 620)
-        // dekodiert das zwar, schafft aber Skalierung + HDR-Umrechnung nicht
-        // ruckelfrei. Der Server (GTX 1080 Ti) wandelt auf 1080p um.
+        // can decode it, but cannot scale and convert HDR smoothly. The server
+        // (GTX 1080 Ti) converts it to 1080p.
         let is_4k = item.width.unwrap_or(0) > 1920 || item.height.unwrap_or(0) > 1440;
         is_disc || is_4k
     }

@@ -28,8 +28,8 @@ where
     media_tile_display: MediaTileDisplay,
     state: FetcherState,
     count: Option<FetcherCount>,
-    /// Zusatzleisten im Kopf (z. B. Sortieren/Filter) – dann bleibt der Kopf
-    /// auch bei leerem Ergebnis sichtbar, damit man den Filter lösen kann.
+    /// Additional header bars (e.g. sorting/filtering) — keeps the header
+    /// visible even for empty results, so the filter can be cleared.
     has_header_extra: bool,
 }
 
@@ -38,9 +38,9 @@ pub struct MediaPageInit<F, C: Component> {
     pub fetcher: F,
     pub empty_component: Option<Controller<C>>,
     pub media_tile_display: Option<MediaTileDisplay>,
-    /// Mitte der Titelzeile (zwischen Titel und Seitenzähler).
+    /// Center of the title row (between the title and page counter).
     pub header_center: Option<gtk::Widget>,
-    /// Unter der Titelzeile (z. B. Buchstabenleiste).
+    /// Below the title row (e.g. alphabet bar).
     pub header_below: Option<gtk::Widget>,
     /// Rechts neben dem Raster (z. B. senkrechte Buchstabenleiste).
     pub side_end: Option<gtk::Widget>,
@@ -229,7 +229,7 @@ where
         if let Some(below) = &header_below {
             widgets.header_area.append(below);
         }
-        // Seitenleiste rechts: Raster und Leiste nebeneinander.
+        // Sidebar on the right: grid and bar side by side.
         if let Some(side) = &side_end {
             let body = gtk::Box::new(gtk::Orientation::Horizontal, 0);
             body.set_vexpand(true);

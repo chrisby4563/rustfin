@@ -13,11 +13,10 @@ use super::{
 };
 
 const MIN_PADDING: i32 = 24;
-/// Dauer der Animation, wenn die Pfeilknöpfe eine Bildschirmbreite weiterblättern.
+/// Animation duration when arrow buttons advance by one screen width.
 const PAGE_ANIMATION_MS: u32 = 300;
-/// Anteil der sichtbaren Breite, den ein Pfeilklick weiterblättert. Etwas
-/// weniger als eine volle Breite, damit eine angeschnittene Kachel sichtbar
-/// bleibt und man die Orientierung behält.
+/// Fraction of visible width advanced by an arrow click. Slightly less than a
+/// full width, keeping a partial tile visible for orientation.
 const PAGE_FRACTION: f64 = 0.9;
 
 pub(crate) enum MediaCarouselItem {
@@ -39,17 +38,17 @@ pub(crate) enum MediaCarouselType {
     Buttons,
 }
 
-/// Eine waagerechte Reihe von Kacheln.
+/// A horizontal row of tiles.
 ///
-/// Früher ein `adw::Carousel` mit festen Seiten: Wischen auf dem Touchpad zog
-/// eine ganze Seite und liess sie einrasten. Jetzt ein frei scrollendes
-/// `gtk::ScrolledWindow` – Touchpad wischt fliessend (mit Schwung), die
-/// Pfeilknöpfe blättern animiert um gut eine Bildschirmbreite, Shift+Mausrad
-/// scrollt die Reihe, das normale Mausrad scrollt die Seite.
+/// Formerly an `adw::Carousel` with fixed pages: touchpad swipes moved a full
+/// page and snapped it into place. Now it is a freely scrolling
+/// `gtk::ScrolledWindow`: touchpad scrolling is fluid with momentum, arrow
+/// buttons animate roughly one screen width, Shift+mouse wheel scrolls the row,
+/// and the normal mouse wheel scrolls the page.
 pub(crate) struct MediaCarousel {
     media_tile_display: MediaTileDisplay,
     media_tiles: Vec<MediaCarouselItem>,
-    /// Passt die Reihe nicht vollständig in die Breite? Nur dann Pfeile zeigen.
+    /// Does the row exceed the available width? Show arrows only then.
     overflowing: bool,
     animation: Option<adw::TimedAnimation>,
 }
@@ -156,10 +155,9 @@ impl Component for MediaCarousel {
                 set_hexpand: true,
                 set_min_content_height: model.media_tile_display.height(),
 
-                // Mausrad (nicht Touchpad) gehört der Seite: ein waagerechtes
-                // ScrolledWindow würde das senkrechte Rad sonst in waagerechtes
-                // Scrollen umdeuten und die Seite blockieren. Mit Shift scrollt
-                // das Rad die Reihe.
+                // The mouse wheel (unlike the touchpad) belongs to the page: a
+                // horizontal ScrolledWindow would otherwise reinterpret vertical
+                // scrolling as horizontal and block the page. Shift scrolls the row.
                 add_controller = gtk::EventControllerScroll {
                     set_flags: gtk::EventControllerScrollFlags::VERTICAL,
                     set_propagation_phase: gtk::PropagationPhase::Capture,
@@ -239,7 +237,7 @@ impl Component for MediaCarousel {
             widgets.row.append(tile.widget());
         }
 
-        // Pfeile nur zeigen, wenn die Reihe breiter ist als der sichtbare Teil.
+        // Show arrows only when the row is wider than the visible portion.
         let hadjustment = widgets.scroller.hadjustment();
         let update_overflow = {
             let sender = sender.clone();
@@ -277,8 +275,8 @@ impl Component for MediaCarousel {
 }
 
 impl MediaCarousel {
-    /// Blättert animiert um gut eine sichtbare Breite. Am Ende angekommen geht
-    /// es wie beim alten Karussell wieder an den Anfang (und umgekehrt).
+    /// Animates by roughly one visible width. At either end, wraps around as
+    /// the old carousel did.
     fn page(&mut self, scroller: &gtk::ScrolledWindow, direction: f64) {
         let adjustment = scroller.hadjustment();
         let max = (adjustment.upper() - adjustment.page_size()).max(0.0);
@@ -286,8 +284,8 @@ impl MediaCarousel {
             return;
         }
 
-        // Läuft noch eine Animation, von deren Ziel aus weiterrechnen, damit
-        // schnelle Doppelklicks nicht verschluckt werden.
+        // If an animation is still running, continue from its target so fast
+        // double-clicks are not lost.
         let from = adjustment.value();
         let base = match &self.animation {
             Some(animation) if animation.state() == adw::AnimationState::Playing => {
@@ -323,8 +321,8 @@ impl MediaCarousel {
     }
 }
 
-/// Scrollt eine Achse um so viel, wie GTK selbst für einen Mausrad-Raster
-/// nimmt (page_size^(2/3)), damit es sich wie überall sonst anfühlt.
+/// Scrolls an axis by the same amount GTK uses for a mouse-wheel step
+/// (page_size^(2/3)), so it feels consistent elsewhere.
 pub(crate) fn scroll_by_wheel(adjustment: &gtk::Adjustment, delta: f64) {
     let step = adjustment.page_size().powf(2.0 / 3.0);
     let max = adjustment.upper() - adjustment.page_size();

@@ -78,7 +78,7 @@ impl ApiClient {
         Ok(())
     }
 
-    /// Wiedergabeposition löschen: Titel verschwindet aus „Weiterschauen“,
+    /// Clear the playback position: the title disappears from “Continue Watching”,
     /// ohne als gesehen zu gelten.
     pub async fn clear_playback_position(&self, item_id: Uuid) -> Result<()> {
         let mut url = self.root.join(&format!("UserItems/{item_id}/UserData"))?;

@@ -135,7 +135,7 @@ impl CollectionSort {
         }
     }
 
-    /// Sinnvolle Richtung beim Umschalten: neu/Jahr/Bewertung absteigend.
+    /// Sensible direction when switching: newest/year/rating descending.
     pub fn default_descending(&self) -> bool {
         !matches!(self, CollectionSort::Name)
     }

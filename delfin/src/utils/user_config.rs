@@ -1,6 +1,6 @@
-//! Jellyfin-Benutzereinstellungen (gelten für alle Clients, auch die
-//! Weboberfläche): Tonsprache, Untertitelmodus, nächste Folge, Startseite …
-//! Gelesen bei der Anmeldung, geschrieben aus den Einstellungen.
+//! Jellyfin user preferences (apply to all clients, including the web UI): audio
+//! language, subtitle mode, next episode, home page … Read at sign-in and
+//! written from preferences.
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -13,14 +13,14 @@ use crate::jellyfin_api::api_client::ApiClient;
 /// `UserConfiguration` des angemeldeten Kontos.
 static USER_CONFIG: Lazy<std::sync::RwLock<Value>> =
     Lazy::new(|| std::sync::RwLock::new(Value::Null));
-/// CustomPrefs der Anzeige-Einstellungen (`DisplayPreferences/usersettings`, Client `emby`).
+/// Display-preference CustomPrefs (`DisplayPreferences/usersettings`, client `emby`).
 static DISPLAY_PREFS: Lazy<std::sync::RwLock<Value>> =
     Lazy::new(|| std::sync::RwLock::new(Value::Null));
 
 pub const DISPLAY_CLIENT: &str = "emby";
 
 pub fn load(api_client: Arc<ApiClient>) {
-    // Startqualität aus den Einstellungen.
+    // Initial quality from preferences.
     crate::globals::STREAM_SETTINGS.write().quality =
         crate::globals::CONFIG.read().video_player.default_quality;
     relm4::spawn(async move {
@@ -76,7 +76,7 @@ pub fn get_list(key: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// Ein Wert der Benutzereinstellungen ändern und das Ganze zurückschreiben.
+/// Change a user-preference value and write the whole object back.
 pub async fn save(api_client: Arc<ApiClient>, key: String, value: Value) -> anyhow::Result<()> {
     let config = {
         let mut config = USER_CONFIG.write().unwrap();
@@ -106,7 +106,7 @@ pub fn display_pref(key: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-/// Eine Anzeige-Einstellung (CustomPrefs) ändern und zurückschreiben.
+/// Change a display preference (CustomPrefs) and write it back.
 pub async fn save_display_prefs(
     api_client: Arc<ApiClient>,
     changes: HashMap<String, String>,
@@ -138,7 +138,7 @@ pub async fn save_display_prefs(
     Ok(())
 }
 
-/// Sprachen vom Server (für Auswahllisten): (Anzeigename, Drei-Buchstaben-Code, Zwei-Buchstaben-Code).
+/// Languages from the server (for selection lists): (display name, three-letter code, two-letter code).
 pub async fn cultures(api_client: &ApiClient) -> Vec<(String, String, String)> {
     let Ok(url) = api_client.root.join("Localization/Cultures") else {
         return vec![];
@@ -178,10 +178,10 @@ pub fn mpv_languages(code: &str) -> String {
     }
 }
 
-/// mpv-Optionen für Ton- und Untertitelwahl (direkt abgespielte Dateien).
+/// mpv options for audio and subtitle selection (directly played files).
 pub fn mpv_track_options(local_audio: &str) -> Vec<(&'static str, String)> {
     let mut out = Vec::new();
-    // Tonspur: Jellyfin-Sprache, sonst lokale Liste; „Standardspur“ = mpv entscheidet nach Flag.
+    // Audio track: Jellyfin language, otherwise local list; “default track” = mpv decides by flag.
     if !get_bool("PlayDefaultAudioTrack", false) {
         let server = mpv_languages(&get_str("AudioLanguagePreference"));
         out.push(("alang", if server.is_empty() { local_audio.to_string() } else { server }));

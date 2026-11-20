@@ -1,8 +1,8 @@
-//! Filme, Serien, Staffeln und Folgen löschen.
+//! Delete movies, series, seasons, and episodes.
 //!
-//! Jellyfin löscht dabei die Dateien auf dem Server, nicht nur den Eintrag.
-//! Deshalb immer mit Rückfrage, und nur wenn das Konto löschen darf
-//! (Dashboard → Benutzer → „Löschen von Medien erlauben“).
+//! Jellyfin deletes the files on the server, not merely the entry. Always ask
+//! for confirmation, and only when the account may delete
+//! (Dashboard → Users → “Allow media deletion”).
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -24,12 +24,12 @@ use crate::{
 
 static CAN_DELETE: AtomicBool = AtomicBool::new(false);
 
-/// Darf das angemeldete Konto Medien löschen?
+/// May the signed-in account delete media?
 pub fn can_delete() -> bool {
     CAN_DELETE.load(Ordering::SeqCst)
 }
 
-/// Nach der Anmeldung einmal die Rechte des Kontos abfragen.
+/// Fetch account permissions once after signing in.
 pub fn load_permission(api_client: Arc<ApiClient>) {
     relm4::spawn(async move {
         let allowed = async {
@@ -76,7 +76,7 @@ fn describe(item: &BaseItemDto) -> String {
     }
 }
 
-/// Rückfrage zeigen; nach Bestätigung löschen und `on_deleted` aufrufen.
+/// Show a confirmation; delete after approval and call `on_deleted`.
 pub fn confirm_delete(
     item: &BaseItemDto,
     api_client: Arc<ApiClient>,

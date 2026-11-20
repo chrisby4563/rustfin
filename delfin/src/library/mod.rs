@@ -140,7 +140,7 @@ impl Component for Library {
                                 },
                             },
 
-                            // Konzept: Suchfeld als Pille (öffnet die Suche).
+                            // Design: pill-shaped search field (opens search).
                             pack_end = &gtk::ToggleButton {
                                 set_tooltip: tr!("library-search-button"),
                                 add_css_class: "header-search",
@@ -320,7 +320,7 @@ impl Component for Library {
 
         let widgets = view_output!();
 
-        // „Gemeinsam schauen“ in der Kopfleiste.
+        // “Watch together” in the header bar.
         let mut syncplay = crate::syncplay::ui::SyncPlayButton::builder()
             .launch(())
             .detach();

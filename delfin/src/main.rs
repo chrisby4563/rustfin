@@ -35,9 +35,9 @@ fn load_css<T: Debug>(app: &RelmApp<T>) {
     app.set_global_css(css);
 }
 
-/// Omarchy schreibt beim Themenwechsel `~/.config/gtk-4.0/omarchy-theme.css`
-/// neu. GTK liest die (über `gtk.css` eingebunden) nur beim Start – darum hier
-/// selbst laden und bei jeder Änderung neu einlesen, damit die Farben sofort
+/// Omarchy rewrites `~/.config/gtk-4.0/omarchy-theme.css` when changing themes.
+/// GTK reads it (included via `gtk.css`) only at startup, so load it here and
+/// reload it on every change so the colors update immediately.
 /// mitwechseln.
 fn follow_desktop_theme() {
     let path = glib::user_config_dir().join("gtk-4.0/omarchy-theme.css");
@@ -73,14 +73,14 @@ fn follow_desktop_theme() {
             provider.load_from_path(&path);
         }
     });
-    // Überwachung läuft so lange wie das Programm.
+    // Monitoring runs for the lifetime of the program.
     std::mem::forget(monitor);
 }
 
 fn load_resources() -> Result<()> {
     let res = match gio::Resource::load(RESOURCES_FILE) {
         Ok(res) => res,
-        // Nicht installiert (Testbau direkt aus dem Projektordner): die
+        // Not installed (test build directly from the project directory): the
         // Ressourcen aus dem Bauordner nehmen.
         Err(_) => gio::Resource::load(PathBuf::from(BUILDDIR).join("data/resources.gresource"))
             .context("Could not load gresource file")?,

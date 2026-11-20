@@ -76,7 +76,7 @@ impl AsyncComponent for MediaDetailsHeader {
                 add_css_class: "media-details-header",
                 set_overflow: gtk::Overflow::Hidden,
 
-                // Hintergrundbild über die ganze Breite.
+                // Background image across the full width.
                 #[name = "backdrop_picture"]
                 gtk::Picture {
                     #[watch]
@@ -219,7 +219,7 @@ impl AsyncComponent for MediaDetailsHeader {
                                         },
                                     },
 
-                                    // Film angefangen: zusätzlich „Von vorn“.
+                                    // Movie started: additionally “From the beginning”.
                                     gtk::Button {
                                         set_label: tr!("media-details-play-from-start"),
                                         add_css_class: "pill",
@@ -341,7 +341,7 @@ impl AsyncComponent for MediaDetailsHeader {
         crate::utils::fade::fade_in_on_load(&widgets.backdrop_picture);
         crate::utils::fade::fade_in_on_load(&widgets.poster_picture);
 
-        // Mehrere Versionen (z. B. 4K und 1080p): Auswahl neben dem Abspielknopf.
+        // Multiple versions (e.g. 4K and 1080p): selection next to the play button.
         if let (Some(item_id), Some(sources)) = (model.item.id, model.item.media_sources.as_ref()) {
             if sources.len() > 1 {
                 let ids: Vec<Option<String>> = sources.iter().map(|s| s.id.clone()).collect();
@@ -370,7 +370,7 @@ impl AsyncComponent for MediaDetailsHeader {
             }
         }
 
-        // Löschen (nur wenn das Konto darf): Film, Serie oder Staffel.
+        // Delete (only if the account may): movie, series, or season.
         if crate::utils::delete_item::can_delete() {
             let delete = gtk::Button::builder()
                 .icon_name("user-trash-symbolic")

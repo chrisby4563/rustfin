@@ -27,8 +27,7 @@ pub struct SeasonsInit {
     pub api_client: Arc<ApiClient>,
     pub series_id: Uuid,
     pub initial_selected_season_index: Option<usize>,
-    /// Staffel, die beim Öffnen vorausgewählt wird, falls kein Index gesetzt
-    /// ist (Staffel- oder Folgen-Kachel angeklickt).
+    /// Season preselected on opening if no index is set (season or episode tile clicked).
     pub initial_season_id: Option<Uuid>,
 }
 
@@ -41,7 +40,7 @@ pub enum SeasonsInput {
 #[derive(Debug)]
 pub enum SeasonsOutput {
     SeasonSelected(usize),
-    /// Gesehen-Status geändert: Staffeln und Folgen neu laden.
+    /// Watched state changed: reload seasons and episodes.
     Refresh,
 }
 

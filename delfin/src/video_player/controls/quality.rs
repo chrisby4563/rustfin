@@ -1,5 +1,5 @@
-//! Qualitäts-Knopf im Player: Automatisch, Original oder feste Stufe, die der
-//! Server umwandelt. Die Wahl gilt für die Sitzung (auch nächste Folgen).
+//! Player quality button: automatic, original, or a fixed level converted by
+//! the server. The choice applies to the session (including next episodes).
 
 use gtk::prelude::*;
 use jellyfin_api::types::BaseItemDto;
@@ -17,13 +17,13 @@ use crate::{
 
 pub(crate) struct Quality {
     buttons: Vec<gtk::CheckButton>,
-    /// Beim Setzen der Auswahl per Code keinen Wechsel auslösen.
+    /// Do not trigger a switch when setting the selection in code.
     syncing: bool,
 }
 
 #[derive(Debug)]
 pub(crate) enum QualityInput {
-    /// Neuer Titel: Automatik-Beschreibung und Auswahl auffrischen.
+    /// New title: refresh automatic description and selection.
     SetItem(Box<BaseItemDto>),
     Selected(usize),
 }
@@ -116,7 +116,7 @@ impl Component for Quality {
                 self.syncing = true;
                 for (button, quality) in self.buttons.iter().zip(StreamQuality::ALL) {
                     button.set_label(Some(&quality_label(quality, Some(auto_transcoded))));
-                    // Disc-Abbilder lassen sich nicht als Datei abspielen.
+                    // Disc images cannot be played as files.
                     if quality == StreamQuality::Original {
                         button.set_sensitive(!is_disc(&item));
                     }

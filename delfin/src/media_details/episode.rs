@@ -52,14 +52,14 @@ impl AsyncComponent for Episode {
             set_title_lines: 1,
             set_use_markup: false,
 
-            // Erste Zeile: Laufzeit / Rest, dann erster Absatz der Beschreibung.
+            // First row: duration / remaining time, then the first description paragraph.
             set_subtitle: &episode_subtitle(&model.media),
             set_subtitle_lines: 4,
 
             #[watch]
             set_visible: !model.hidden,
 
-            // Mehrere Fassungen der Folge: Auswahl wie bei Filmen.
+            // Multiple episode versions: selection as for movies.
             add_suffix = &gtk::MenuButton {
                 set_icon_name: "view-paged-symbolic",
                 set_css_classes: &["image-button", "flat"],
@@ -80,7 +80,7 @@ impl AsyncComponent for Episode {
                 },
             },
 
-            // Medieninfo der Folge (Bild, Ton, Untertitel, Datei).
+            // Episode media info (video, audio, subtitles, file).
             add_suffix = &gtk::MenuButton {
                 set_icon_name: "help-about-symbolic",
                 set_css_classes: &["image-button", "flat"],
@@ -154,7 +154,7 @@ impl AsyncComponent for Episode {
 
         model.thumbnail.set(thumbnail).unwrap();
 
-        // Rechtsklick / lange drücken: Löschen (nur wenn das Konto darf).
+        // Right-click / long press: delete (only if the account may do so).
         if crate::utils::delete_item::can_delete() {
             let menu = gtk::Popover::new();
             menu.set_parent(&root);
@@ -399,7 +399,7 @@ impl Component for EpisodeThumbnail {
     }
 }
 
-/// Fassungen einer Folge als Auswahlliste (wie die Versionsauswahl bei Filmen).
+/// Episode versions as a selection list (like movie version selection).
 fn versions_list(item_id: uuid::Uuid, item: &BaseItemDto) -> gtk::Widget {
     use crate::globals::SELECTED_VERSIONS;
     let list = gtk::Box::new(gtk::Orientation::Vertical, 2);

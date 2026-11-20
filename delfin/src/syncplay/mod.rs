@@ -1,9 +1,9 @@
-//! SyncPlay: gemeinsam schauen über den Jellyfin-Server.
+//! SyncPlay: watch together through the Jellyfin server.
 //!
-//! Ablauf: Delfin hält eine WebSocket-Verbindung zum Server (`/socket`), über
-//! die Gruppen-Ereignisse und zeitgestempelte Befehle („Pause um …“) kommen.
+//! Delfin maintains a WebSocket connection to the server (`/socket`) for group
+//! events and timestamped commands (“Pause at …”).
 //! Eigene Bedienung (Pause, Play, Spulen, neuer Titel) geht bei aktiver Gruppe
-//! nicht direkt an den Player, sondern als Anfrage an den Server, der sie an
+//! not directly to the player, but as a request to the server, which forwards it
 //! alle Teilnehmer verteilt – auch an Delfin selbst. Damit alle im selben
 //! Moment handeln, misst Delfin den Abstand zur Server-Uhr (`/GetUtcTime`).
 
@@ -38,13 +38,13 @@ use crate::{
 
 const TICKS_PER_SECOND: f64 = 10_000_000.0;
 
-/// Gruppe, in der Delfin gerade ist (für die Oberfläche).
+/// Group Delfin is currently in (for the UI).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct GroupInfo {
     pub id: String,
     pub name: String,
     pub participants: Vec<String>,
-    /// Zustand der Gruppe laut Server: Idle, Waiting, Paused, Playing.
+    /// Group state reported by the server: Idle, Waiting, Paused, Playing.
     pub state: String,
 }
 
@@ -58,7 +58,7 @@ pub enum CommandKind {
     Stop,
 }
 
-/// Befehl vom Server, auszuführen zur Server-Zeit `when_ms`.
+/// Command from the server, to execute at server time `when_ms`.
 #[derive(Debug, Clone, Copy)]
 pub struct SyncCommand {
     pub kind: CommandKind,
@@ -73,36 +73,36 @@ struct Inner {
     /// Server-Uhr minus eigene Uhr, in Millisekunden.
     offset_ms: i64,
     playlist_item_id: Option<String>,
-    /// Gruppe selbst erstellt → laufenden Titel an die Gruppe geben.
+    /// Created the group → add the current title to the group.
     created_by_us: bool,
-    /// Titel, der gerade im Player läuft.
+    /// Title currently playing.
     local_item: Option<Uuid>,
-    /// Zuletzt vom Server gestarteter Titel (Titel, Zeit ms). Endet die Folge
-    /// auf zwei Geräten fast gleichzeitig, soll die nächste nur einmal starten.
+    /// Last title started by the server (title, time in ms). If the episode ends
+    /// nearly simultaneously on two devices, start the next one only once.
     last_queue: Option<(Uuid, i64)>,
-    /// Nächster Titel in der Warteschlange der Gruppe (für `NextItem`).
+    /// Next title in the group's queue (for `NextItem`).
     queue_next: Option<Uuid>,
-    /// Startstelle (Sekunden) für den nächsten vom Server gestarteten Titel.
+    /// Start position (seconds) for the next server-started title.
     pending_start: Option<f64>,
 }
 
 static INNER: Lazy<Mutex<Inner>> = Lazy::new(|| Mutex::new(Inner::default()));
-/// Nächstes `PlayVideo` kommt von SyncPlay selbst und darf direkt spielen.
+/// The next `PlayVideo` comes from SyncPlay itself and may play directly.
 static ALLOW_NEXT_PLAY: AtomicBool = AtomicBool::new(false);
-/// Zeitpunkt (ms) der letzten eigenen Pause/Play/Spul-Anfrage – damit die
-/// Meldung sagen kann, ob man selbst oder jemand anderes gesteuert hat.
+/// Time (ms) of the last local pause/play/seek request, so notifications can
+/// state whether the user or someone else controlled playback.
 static LAST_OWN_REQUEST_MS: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
 
 fn mark_own_request() {
     LAST_OWN_REQUEST_MS.store(now_ms(), Ordering::SeqCst);
 }
 
-/// War die zuletzt gemeldete Aktion eine eigene (innerhalb 3 s)?
+/// Was the most recently reported action local (within 3 seconds)?
 fn was_own_request() -> bool {
     now_ms() - LAST_OWN_REQUEST_MS.load(Ordering::SeqCst) < 3000
 }
 
-/// Wer außer einem selbst in der Gruppe ist (nur eindeutig bei anderem Konto).
+/// Who else is in the group (only unambiguous for a different account).
 fn other_person() -> String {
     let own = inner()
         .api_client
@@ -164,13 +164,13 @@ pub fn set_local_item(item_id: Option<Uuid>) {
     inner().local_item = item_id;
 }
 
-/// Startstelle für einen gerade von SyncPlay gestarteten Titel abholen.
+/// Retrieve the start position for a title just started by SyncPlay.
 pub fn take_pending_start() -> Option<f64> {
     inner().pending_start.take()
 }
 
-/// Soll ein `PlayVideo` direkt spielen? Bei aktiver Gruppe nicht – dann geht
-/// der Titel als neue Warteschlange an den Server.
+/// Should a `PlayVideo` play directly? Not with an active group — then send
+/// the title to the server as a new queue.
 pub fn intercept_play_video(item: &BaseItemDto, start_ticks: i64) -> bool {
     if ALLOW_NEXT_PLAY.swap(false, Ordering::SeqCst) || !in_group() {
         return false;
@@ -184,7 +184,7 @@ pub fn intercept_play_video(item: &BaseItemDto, start_ticks: i64) -> bool {
             return true;
         }
     }
-    // Nächste Folge der Gruppen-Warteschlange: der Server schaltet alle weiter.
+    // Next episode from the group queue: the server advances everyone.
     let current = inner().playlist_item_id.clone();
     if inner().queue_next == Some(item_id) {
         if let Some(current) = current {
@@ -193,8 +193,8 @@ pub fn intercept_play_video(item: &BaseItemDto, start_ticks: i64) -> bool {
         }
     }
 
-    // Folge: Rest der Serie ab hier als Warteschlange, damit alle Geräte
-    // (auch die Weboberfläche) am Ende gemeinsam weiterschalten.
+    // Episode: queue the rest of the series from here so all devices, including
+    // the web UI, advance together at the end.
     let series_id = item
         .series_id
         .filter(|_| matches!(item.type_, Some(BaseItemKind::Episode)));
@@ -229,10 +229,10 @@ pub fn intercept_play_video(item: &BaseItemDto, start_ticks: i64) -> bool {
     true
 }
 
-/// Höchstzahl Folgen in der Gruppen-Warteschlange.
+/// Maximum number of episodes in the group queue.
 const QUEUE_MAX: usize = 50;
 
-/// Play/Pause vom Nutzer. `true` = von SyncPlay übernommen.
+/// User play/pause. `true` = handled by SyncPlay.
 pub fn intercept_play(playing: bool) -> bool {
     if !in_group() {
         return false;
@@ -245,7 +245,7 @@ pub fn intercept_play(playing: bool) -> bool {
     true
 }
 
-/// Spulen vom Nutzer. `true` = von SyncPlay übernommen.
+/// User seek. `true` = handled by SyncPlay.
 pub fn intercept_seek(seconds: usize) -> bool {
     if !in_group() {
         return false;
@@ -282,7 +282,7 @@ fn send_state(path: &'static str, position_seconds: f64, is_playing: bool) {
     );
 }
 
-/// Eigenen laufenden Titel als Warteschlange an die (neue) Gruppe geben.
+/// Add the user's currently playing title to the (new) group queue.
 pub fn share_current(item_id: Uuid, position_seconds: usize) {
     spawn_request(
         "SyncPlay/SetNewQueue",
@@ -316,7 +316,7 @@ async fn post(path: &str, body: Value) -> Result<()> {
     Ok(())
 }
 
-/// Bestehende Gruppen auf dem Server.
+/// Existing groups on the server.
 pub async fn list_groups() -> Result<Vec<GroupInfo>> {
     let api_client = inner().api_client.clone().context("not signed in")?;
     let url = api_client.root.join("SyncPlay/List")?;
@@ -362,9 +362,8 @@ pub async fn join_group(group_id: &str) -> Result<()> {
     post("SyncPlay/Join", json!({ "GroupId": group_id })).await
 }
 
-/// Beim Beenden von Delfin die Gruppe sauber verlassen, damit die anderen
-/// nicht 30 s auf uns warten. Läuft nach dem Ende der Oberfläche, daher mit
-/// eigener kleiner Laufzeitumgebung und kurzer Frist.
+/// Leave the group cleanly when Delfin exits so others do not wait 30 seconds.
+/// This runs after the UI ends, so it uses its own small runtime and deadline.
 pub fn leave_on_exit() {
     if !in_group() {
         return;
@@ -386,14 +385,14 @@ pub async fn leave_group() -> Result<()> {
     let was_known = GROUP.read().is_some();
     let result = post("SyncPlay/Leave", json!({})).await;
     *GROUP.write() = None;
-    // Bei bekannter Gruppe meldet der Server „GroupLeft“ selbst (mit Meldung).
+    // For a known group, the server reports “GroupLeft” itself (with a notice).
     if result.is_ok() && !was_known {
         toast(tr!("syncplay-left").to_string());
     }
     result
 }
 
-/// WebSocket aufbauen (falls nicht schon offen) und Uhren abgleichen.
+/// Open the WebSocket (if not already open) and synchronize clocks.
 pub async fn connect() -> Result<()> {
     if connected() {
         return Ok(());
@@ -413,16 +412,16 @@ pub async fn connect() -> Result<()> {
         .await
         .context("WebSocket connect")?;
     info!("SyncPlay: WebSocket connected");
-    // Der Server merkt sich die Gruppe pro Gerät auch über einen Neustart
-    // hinweg. Ohne ausdrückliches Beitreten soll Delfin in keiner alten
-    // Gruppe hängen (sonst landen Delfin und Browser in verschiedenen Gruppen).
+    // The server retains a group per device across restarts. Without explicitly
+    // joining, Delfin should not remain in an old group (otherwise Delfin and
+    // browser may end up in different groups).
     if GROUP.read().is_none() {
         let _ = post("SyncPlay/Leave", json!({})).await;
     }
     let (mut write, mut read) = stream.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
-    // Gilt, solange diese Verbindung lebt; beendet die Lebenszeichen-Schleife
-    // (die hält sonst den Sender fest und damit auch die Schreib-Schleife).
+    // Applies while this connection lives; stops the keepalive loop, which
+    // otherwise retains the sender and therefore the write loop.
     let alive = std::sync::Arc::new(AtomicBool::new(true));
     inner().ws_tx = Some(tx.clone());
 
@@ -457,7 +456,7 @@ pub async fn connect() -> Result<()> {
         }
     }});
 
-    // Lebenszeichen und regelmäßiger Uhrenabgleich
+    // Keepalive and periodic clock synchronization.
     relm4::spawn({
         let tx = tx.clone();
         async move {
@@ -482,12 +481,12 @@ pub async fn connect() -> Result<()> {
     Ok(())
 }
 
-/// Nach einem Verbindungsabbruch (WLAN-Wechsel, Standby) der Gruppe wieder
-/// beitreten. Versucht es mit wachsenden Abständen (2 … 30 s) höchstens
+/// Rejoin the group after a disconnect (Wi-Fi change, standby). Retries with
+/// increasing intervals (2 … 30 seconds) at most
 /// 10 Minuten lang; tritt man vorher selbst einer Gruppe bei, endet es.
 ///
 /// Als geboxte `Send`-Future: `connect` startet `reconnect`, `reconnect` ruft
-/// `connect` – ohne feste Typangabe kann der Compiler `Send` nicht ableiten.
+/// `connect` — without a fixed type annotation the compiler cannot infer `Send`.
 fn reconnect(
     group_id: String,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
@@ -696,7 +695,7 @@ async fn handle_play_queue(queue: &Value) {
         queue["StartPositionTicks"].as_i64().unwrap_or_default() as f64 / TICKS_PER_SECOND;
     info!("SyncPlay queue ({reason}): {item_id} from {start_seconds:.1}s");
 
-    // Läuft der Titel schon: nur an die Stelle und bereit melden.
+    // If the title is already playing, seek and report ready.
     inner().last_queue = Some((item_id, now_ms()));
     if inner().local_item == Some(item_id) {
         VIDEO_PLAYER_BROKER.send(VideoPlayerInput::SyncPlayPrepare(start_seconds));

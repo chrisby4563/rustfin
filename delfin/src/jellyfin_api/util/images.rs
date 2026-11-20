@@ -177,7 +177,7 @@ impl ApiClient {
         Ok(url.to_string())
     }
 
-    /// Porträt einer Person (Besetzung), quadratisch beschnitten passt es in
+    /// Portrait of a person (cast); square-cropped so it fits in
     /// einen runden Avatar.
     pub fn get_person_image_url(&self, person_id: &uuid::Uuid, tag: &str) -> Result<String> {
         let mut url = self
@@ -207,7 +207,7 @@ impl ApiClient {
         Ok(url.to_string())
     }
 
-    /// Großes Hintergrundbild; bei Folgen das der Serie.
+    /// Large background image; use the series image for episodes.
     pub fn get_wide_backdrop_url(&self, item: &BaseItemDto) -> Result<String> {
         let Some(item_id) = item.parent_backdrop_item_id.or(item.series_id).or(item.id) else {
             bail!("Missing backdrop item ID");
