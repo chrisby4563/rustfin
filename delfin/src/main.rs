@@ -27,6 +27,7 @@ fn main() {
     load_css(&app);
     follow_desktop_theme();
     app.with_broker(&APP_BROKER).run::<App>(());
+    delfin::syncplay::leave_on_exit();
 }
 
 fn load_css<T: Debug>(app: &RelmApp<T>) {

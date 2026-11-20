@@ -174,6 +174,14 @@ impl VideoPlayerBackend for VideoPlayerBackendMpv {
         self.widget.seek_to(seconds as u32);
     }
 
+    fn seek_to_precise(&self, seconds: f64) {
+        self.widget.seek_to_precise(seconds.max(0.0));
+    }
+
+    fn position_precise(&self) -> f64 {
+        self.widget.position()
+    }
+
     fn seek_by(&self, seconds: isize) {
         self.widget.seek_by(seconds as i32);
     }

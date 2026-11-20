@@ -76,12 +76,42 @@ struct Inner {
     /// Titel, der gerade im Player läuft.
     local_item: Option<Uuid>,
     /// Startstelle (Sekunden) für den nächsten vom Server gestarteten Titel.
-    pending_start: Option<usize>,
+    pending_start: Option<f64>,
 }
 
 static INNER: Lazy<Mutex<Inner>> = Lazy::new(|| Mutex::new(Inner::default()));
 /// Nächstes `PlayVideo` kommt von SyncPlay selbst und darf direkt spielen.
 static ALLOW_NEXT_PLAY: AtomicBool = AtomicBool::new(false);
+/// Zeitpunkt (ms) der letzten eigenen Pause/Play/Spul-Anfrage – damit die
+/// Meldung sagen kann, ob man selbst oder jemand anderes gesteuert hat.
+static LAST_OWN_REQUEST_MS: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+fn mark_own_request() {
+    LAST_OWN_REQUEST_MS.store(now_ms(), Ordering::SeqCst);
+}
+
+/// War die zuletzt gemeldete Aktion eine eigene (innerhalb 3 s)?
+fn was_own_request() -> bool {
+    now_ms() - LAST_OWN_REQUEST_MS.load(Ordering::SeqCst) < 3000
+}
+
+/// Wer außer einem selbst in der Gruppe ist (nur eindeutig bei anderem Konto).
+fn other_person() -> String {
+    let own = inner()
+        .api_client
+        .as_ref()
+        .map(|c| c.account.username.clone())
+        .unwrap_or_default();
+    let group = GROUP.read();
+    let others: Vec<&String> = group
+        .as_ref()
+        .map(|g| g.participants.iter().filter(|p| **p != own).collect())
+        .unwrap_or_default();
+    match others.as_slice() {
+        [one] => one.to_string(),
+        _ => tr!("syncplay-someone").to_string(),
+    }
+}
 
 fn inner() -> std::sync::MutexGuard<'static, Inner> {
     INNER.lock().unwrap_or_else(|e| e.into_inner())
@@ -128,7 +158,7 @@ pub fn set_local_item(item_id: Option<Uuid>) {
 }
 
 /// Startstelle für einen gerade von SyncPlay gestarteten Titel abholen.
-pub fn take_pending_start() -> Option<usize> {
+pub fn take_pending_start() -> Option<f64> {
     inner().pending_start.take()
 }
 
@@ -157,6 +187,7 @@ pub fn intercept_play(playing: bool) -> bool {
     if !in_group() {
         return false;
     }
+    mark_own_request();
     spawn_request(
         if playing { "SyncPlay/Unpause" } else { "SyncPlay/Pause" },
         json!({}),
@@ -169,6 +200,7 @@ pub fn intercept_seek(seconds: usize) -> bool {
     if !in_group() {
         return false;
     }
+    mark_own_request();
     spawn_request(
         "SyncPlay/Seek",
         json!({ "PositionTicks": (seconds as f64 * TICKS_PER_SECOND) as i64 }),
@@ -176,15 +208,15 @@ pub fn intercept_seek(seconds: usize) -> bool {
     true
 }
 
-pub fn send_buffering(position_seconds: usize, is_playing: bool) {
+pub fn send_buffering(position_seconds: f64, is_playing: bool) {
     send_state("SyncPlay/Buffering", position_seconds, is_playing);
 }
 
-pub fn send_ready(position_seconds: usize, is_playing: bool) {
+pub fn send_ready(position_seconds: f64, is_playing: bool) {
     send_state("SyncPlay/Ready", position_seconds, is_playing);
 }
 
-fn send_state(path: &'static str, position_seconds: usize, is_playing: bool) {
+fn send_state(path: &'static str, position_seconds: f64, is_playing: bool) {
     if !in_group() {
         return;
     }
@@ -193,7 +225,7 @@ fn send_state(path: &'static str, position_seconds: usize, is_playing: bool) {
         path,
         json!({
             "When": server_now_iso(),
-            "PositionTicks": (position_seconds as f64 * TICKS_PER_SECOND) as i64,
+            "PositionTicks": (position_seconds * TICKS_PER_SECOND) as i64,
             "IsPlaying": is_playing,
             "PlaylistItemId": playlist_item_id,
         }),
@@ -280,9 +312,34 @@ pub async fn join_group(group_id: &str) -> Result<()> {
     post("SyncPlay/Join", json!({ "GroupId": group_id })).await
 }
 
+/// Beim Beenden von Delfin die Gruppe sauber verlassen, damit die anderen
+/// nicht 30 s auf uns warten. Läuft nach dem Ende der Oberfläche, daher mit
+/// eigener kleiner Laufzeitumgebung und kurzer Frist.
+pub fn leave_on_exit() {
+    if !in_group() {
+        return;
+    }
+    let Ok(runtime) = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    else {
+        return;
+    };
+    let _ = runtime.block_on(tokio::time::timeout(
+        Duration::from_secs(2),
+        post("SyncPlay/Leave", json!({})),
+    ));
+    info!("SyncPlay: left group on exit");
+}
+
 pub async fn leave_group() -> Result<()> {
+    let was_known = GROUP.read().is_some();
     let result = post("SyncPlay/Leave", json!({})).await;
     *GROUP.write() = None;
+    // Bei bekannter Gruppe meldet der Server „GroupLeft“ selbst (mit Meldung).
+    if result.is_ok() && !was_known {
+        toast(tr!("syncplay-left").to_string());
+    }
     result
 }
 
@@ -306,6 +363,12 @@ pub async fn connect() -> Result<()> {
         .await
         .context("WebSocket connect")?;
     info!("SyncPlay: WebSocket connected");
+    // Der Server merkt sich die Gruppe pro Gerät auch über einen Neustart
+    // hinweg. Ohne ausdrückliches Beitreten soll Delfin in keiner alten
+    // Gruppe hängen (sonst landen Delfin und Browser in verschiedenen Gruppen).
+    if GROUP.read().is_none() {
+        let _ = post("SyncPlay/Leave", json!({})).await;
+    }
     let (mut write, mut read) = stream.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
     inner().ws_tx = Some(tx.clone());
@@ -481,10 +544,23 @@ async fn handle_group_update(data: &Value) {
             if previous.as_deref() == Some(state.as_str()) {
                 return;
             }
+            let by = if was_own_request() {
+                tr!("syncplay-by-you").to_string()
+            } else {
+                other_person()
+            };
             match (state.as_str(), reason) {
+                ("Waiting", "Seek") => {
+                    toast(tr!("syncplay-seeked-by", {"name" => by}).to_string())
+                }
                 ("Waiting", _) => toast(tr!("syncplay-state-waiting").to_string()),
+                ("Playing", "Unpause") => {
+                    toast(tr!("syncplay-played-by", {"name" => by}).to_string())
+                }
                 ("Playing", _) => toast(tr!("syncplay-state-playing-toast").to_string()),
-                ("Paused", "Pause") => toast(tr!("syncplay-state-paused-toast").to_string()),
+                ("Paused", "Pause") => {
+                    toast(tr!("syncplay-paused-by", {"name" => by}).to_string())
+                }
                 _ => {}
             }
             if let Some(group) = GROUP.write().as_mut() {
@@ -519,9 +595,8 @@ async fn handle_play_queue(queue: &Value) {
         return;
     };
     let start_seconds =
-        (queue["StartPositionTicks"].as_i64().unwrap_or_default() as f64 / TICKS_PER_SECOND)
-            as usize;
-    info!("SyncPlay queue ({reason}): {item_id} from {start_seconds}s");
+        queue["StartPositionTicks"].as_i64().unwrap_or_default() as f64 / TICKS_PER_SECOND;
+    info!("SyncPlay queue ({reason}): {item_id} from {start_seconds:.1}s");
 
     // Läuft der Titel schon: nur an die Stelle und bereit melden.
     if inner().local_item == Some(item_id) {

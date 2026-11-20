@@ -246,7 +246,12 @@ fn show_group(content: &gtk::Box, group: &GroupInfo, sender: &ComponentSender<Sy
         wrap_label(&status_text(group)),
         wrap_label(tr!("syncplay-hint")),
     ];
-    let leave = button(tr!("syncplay-leave"), false);
+    // Allein in der Gruppe: Austreten löst sie auf (Server löscht leere Gruppen).
+    let leave = if group.participants.len() <= 1 {
+        button(tr!("syncplay-dissolve"), false)
+    } else {
+        button(tr!("syncplay-leave"), false)
+    };
     leave.add_css_class("destructive-action");
     leave.connect_clicked({
         let sender = sender.clone();
@@ -289,5 +294,16 @@ fn show_groups(content: &gtk::Box, groups: &[GroupInfo], sender: &ComponentSende
     children.push(gtk::Separator::new(gtk::Orientation::Horizontal).upcast());
     children.push(entry.upcast());
     children.push(create.upcast());
+
+    // Austreten immer anbieten: Der Server merkt sich die Gruppe pro Gerät,
+    // auch wenn Delfin selbst gerade nichts davon weiß.
+    let leave = button(tr!("syncplay-leave"), false);
+    leave.add_css_class("flat");
+    leave.set_tooltip_text(Some(tr!("syncplay-leave-any-tooltip")));
+    leave.connect_clicked({
+        let sender = sender.clone();
+        move |_| sender.input(SyncPlayButtonInput::Leave)
+    });
+    children.push(leave.upcast());
     set_content(content, &children);
 }

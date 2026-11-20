@@ -432,6 +432,16 @@ void vpm_video_player_mpv_seek_to(VpmVideoPlayerMpv *self, uint seconds) {
   g_free(val);
 }
 
+/* Genau auf Bruchteile einer Sekunde springen (SyncPlay). g_ascii_dtostr
+ * schreibt immer einen Punkt, unabhängig vom Gebietsschema. */
+void vpm_video_player_mpv_seek_to_precise(VpmVideoPlayerMpv *self,
+                                          double seconds) {
+  gchar val[G_ASCII_DTOSTR_BUF_SIZE];
+  g_ascii_dtostr(val, sizeof(val), seconds);
+  const char *cmd[] = {"seek", val, "absolute+exact", NULL};
+  mpv_command(self->mpv_ctx->handle, cmd);
+}
+
 void vpm_video_player_mpv_seek_by(VpmVideoPlayerMpv *self, int seconds) {
   gchar *val = g_strdup_printf("%i", seconds);
   const char *cmd[] = {"seek", val, "relative", NULL};

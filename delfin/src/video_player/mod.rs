@@ -78,9 +78,11 @@ pub struct VideoPlayer {
     /// Server-Umwandlung). mpv ignoriert Sprünge vor Wiedergabebeginn.
     pending_seek: Option<usize>,
     /// SyncPlay: nach dem Laden pausieren und an dieser Stelle bereit melden.
-    syncplay_ready_at: Option<usize>,
+    syncplay_ready_at: Option<f64>,
     /// SyncPlay: letzter Start (Server-Zeit ms, Position s) für den Gleichlauf.
     syncplay_anchor: Option<(i64, f64)>,
+    /// SyncPlay: Tempo gerade zum Aufholen verstellt.
+    syncplay_speed_adjusted: bool,
 
     cursor: Option<gdk::Cursor>,
     cursor_debounce: Debounce,
@@ -115,8 +117,10 @@ pub enum VideoPlayerInput {
     SyncPlayCommand(crate::syncplay::SyncCommand),
     SyncPlayApply(crate::syncplay::SyncCommand),
     /// SyncPlay: Titel läuft schon – an Stelle springen, pausieren, bereit melden.
-    SyncPlayPrepare(usize),
-    SyncPlayReady(usize),
+    SyncPlayPrepare(f64),
+    /// SyncPlay: „bereit“ melden, sobald das Bild an der Stelle steht
+    /// (Position, Startzeit der Wartezeit in ms).
+    SyncPlayReadyPoll(f64, i64),
     /// SyncPlay: eigene Gruppe erstellt – laufenden Titel an die Gruppe geben.
     SyncPlayShareCurrent,
     SyncPlayCheckDrift,
@@ -278,6 +282,7 @@ impl Component for VideoPlayer {
             pending_seek: None,
             syncplay_ready_at: None,
             syncplay_anchor: None,
+            syncplay_speed_adjusted: false,
 
             cursor: None,
             cursor_debounce,
@@ -352,8 +357,8 @@ impl Component for VideoPlayer {
             }
         });
 
-        // SyncPlay-Gleichlauf alle 5 s prüfen.
-        gtk::glib::timeout_add_seconds_local(5, {
+        // SyncPlay-Gleichlauf jede Sekunde prüfen.
+        gtk::glib::timeout_add_seconds_local(1, {
             let sender = sender.clone();
             move || {
                 sender.input(VideoPlayerInput::SyncPlayCheckDrift);
@@ -426,17 +431,22 @@ impl Component for VideoPlayer {
                 self.apply_syncplay(command, &sender);
             }
             VideoPlayerInput::SyncPlayPrepare(position) => {
-                self.syncplay_anchor = None;
-                self.backend.borrow().pause();
-                self.backend.borrow().seek_to(position);
-                crate::syncplay::send_buffering(position, false);
-                let sender = sender.clone();
-                gtk::glib::timeout_add_local_once(Duration::from_millis(800), move || {
-                    sender.input(VideoPlayerInput::SyncPlayReady(position))
-                });
+                self.syncplay_hold(position, &sender);
             }
-            VideoPlayerInput::SyncPlayReady(position) => {
-                crate::syncplay::send_ready(position, false);
+            VideoPlayerInput::SyncPlayReadyPoll(position, started_ms) => {
+                // Bereit = Player spielt (nicht lädt/puffert) und steht an der Stelle.
+                let in_place = matches!(self.player_state, PlayerState::Playing { .. })
+                    && (self.backend.borrow().position_precise() - position).abs() < 1.5;
+                let waited = chrono::Utc::now().timestamp_millis() - started_ms;
+                if in_place || waited > 15_000 {
+                    info!("SyncPlay ready at {position:.1}s after {waited} ms");
+                    crate::syncplay::send_ready(position, false);
+                } else {
+                    let sender = sender.clone();
+                    gtk::glib::timeout_add_local_once(Duration::from_millis(200), move || {
+                        sender.input(VideoPlayerInput::SyncPlayReadyPoll(position, started_ms))
+                    });
+                }
             }
             VideoPlayerInput::SyncPlayShareCurrent => {
                 if let Some(item_id) = self.media.as_ref().and_then(|m| m.id) {
@@ -453,10 +463,23 @@ impl Component for VideoPlayer {
                         let elapsed = (crate::syncplay::server_now_ms() - when_ms).max(0) as f64
                             / 1000.0;
                         let expected = start + elapsed;
-                        let actual = self.backend.borrow().position() as f64;
-                        if (actual - expected).abs() > 2.0 {
-                            info!("SyncPlay drift {:.1}s → seek", actual - expected);
-                            self.backend.borrow().seek_to(expected.round() as usize);
+                        let actual = self.backend.borrow().position_precise();
+                        let drift = actual - expected; // > 0: wir sind voraus
+                        if drift.abs() >= 2.0 {
+                            info!("SyncPlay drift {drift:.2}s → seek");
+                            self.syncplay_reset_speed();
+                            self.backend.borrow().seek_to_precise(expected);
+                        } else if drift.abs() > 0.1 {
+                            // Sanft aufholen: kurz schneller/langsamer.
+                            let step = if drift.abs() > 0.5 { 0.10 } else { 0.05 };
+                            let speed = if drift > 0.0 { 1.0 - step } else { 1.0 + step };
+                            if !self.syncplay_speed_adjusted {
+                                info!("SyncPlay drift {drift:.2}s → speed {speed}");
+                            }
+                            self.backend.borrow().set_playback_speed(speed);
+                            self.syncplay_speed_adjusted = true;
+                        } else {
+                            self.syncplay_reset_speed();
                         }
                     }
                 }
@@ -478,7 +501,7 @@ impl Component for VideoPlayer {
                 // pausiert bleiben und bereit melden.
                 self.syncplay_ready_at = crate::syncplay::take_pending_start();
                 if let Some(start) = self.syncplay_ready_at {
-                    self.pending_seek = Some(start);
+                    self.pending_seek = Some(start as usize);
                     crate::syncplay::send_buffering(start, false);
                 }
 
@@ -802,7 +825,24 @@ impl VideoPlayer {
         sender: &ComponentSender<Self>,
     ) {
         use crate::syncplay::CommandKind;
-        let position = self.backend.borrow().position() as f64;
+        let position = self.backend.borrow().position_precise();
+        self.syncplay_reset_speed();
+        // Noch am Laden: mpv nicht anfassen (eine Pause vor dem ersten Bild
+        // hält das Laden an). Nur das Ziel merken, Rest beim Ladeende.
+        if matches!(self.player_state, PlayerState::Loading) && self.syncplay_ready_at.is_some()
+        {
+            info!("SyncPlay apply {:?} while loading → deferred", command.kind);
+            match command.kind {
+                CommandKind::Unpause => {
+                    self.syncplay_anchor = Some((command.when_ms, command.position_seconds))
+                }
+                _ => {
+                    self.syncplay_anchor = None;
+                    self.syncplay_ready_at = Some(command.position_seconds);
+                }
+            }
+            return;
+        }
         info!(
             "SyncPlay apply {:?}: at {position}s, target {:.1}s, state {:?}",
             command.kind, command.position_seconds, self.player_state
@@ -813,8 +853,8 @@ impl VideoPlayer {
                 let late = (crate::syncplay::server_now_ms() - command.when_ms).max(0) as f64
                     / 1000.0;
                 let target = command.position_seconds + late;
-                if (position - target).abs() >= 1.0 {
-                    self.backend.borrow().seek_to(target.round() as usize);
+                if (position - target).abs() >= 0.3 {
+                    self.backend.borrow().seek_to_precise(target);
                 }
                 self.backend.borrow().play();
                 self.syncplay_anchor = Some((command.when_ms, command.position_seconds));
@@ -822,23 +862,37 @@ impl VideoPlayer {
             CommandKind::Pause | CommandKind::Stop => {
                 self.syncplay_anchor = None;
                 self.backend.borrow().pause();
-                if (position - command.position_seconds).abs() >= 1.0 {
+                if (position - command.position_seconds).abs() >= 0.3 {
                     self.backend
                         .borrow()
-                        .seek_to(command.position_seconds.round() as usize);
+                        .seek_to_precise(command.position_seconds);
                 }
             }
             CommandKind::Seek => {
-                let target = command.position_seconds.round() as usize;
-                self.syncplay_anchor = None;
-                self.backend.borrow().pause();
-                self.backend.borrow().seek_to(target);
-                crate::syncplay::send_buffering(target, false);
-                let sender = sender.clone();
-                gtk::glib::timeout_add_local_once(Duration::from_millis(800), move || {
-                    sender.input(VideoPlayerInput::SyncPlayReady(target))
-                });
+                self.syncplay_hold(command.position_seconds, sender);
             }
+        }
+    }
+
+    /// An `position` springen, pausieren, „puffert“ melden und „bereit“, sobald
+    /// das Bild dort steht. Den gemeinsamen Start schickt dann der Server.
+    fn syncplay_hold(&mut self, position: f64, sender: &ComponentSender<Self>) {
+        self.syncplay_anchor = None;
+        self.syncplay_reset_speed();
+        self.backend.borrow().pause();
+        self.backend.borrow().seek_to_precise(position);
+        crate::syncplay::send_buffering(position, false);
+        let started = chrono::Utc::now().timestamp_millis();
+        let sender = sender.clone();
+        gtk::glib::timeout_add_local_once(Duration::from_millis(300), move || {
+            sender.input(VideoPlayerInput::SyncPlayReadyPoll(position, started))
+        });
+    }
+
+    fn syncplay_reset_speed(&mut self) {
+        if self.syncplay_speed_adjusted {
+            self.backend.borrow().set_playback_speed(1.0);
+            self.syncplay_speed_adjusted = false;
         }
     }
 
@@ -894,8 +948,18 @@ impl VideoPlayer {
             // SyncPlay: geladen → pausieren und der Gruppe „bereit“ melden;
             // den gemeinsamen Start schickt der Server.
             if let Some(start) = self.syncplay_ready_at.take() {
-                self.backend.borrow().pause();
-                crate::syncplay::send_ready(start, false);
+                if let Some((when_ms, position)) = self.syncplay_anchor {
+                    // Während des Ladens kam schon „Los“: gleich mitlaufen.
+                    let elapsed =
+                        (crate::syncplay::server_now_ms() - when_ms).max(0) as f64 / 1000.0;
+                    self.backend.borrow().seek_to_precise(position + elapsed);
+                } else {
+                    self.backend.borrow().pause();
+                    self.backend.borrow().seek_to_precise(start);
+                    let started = chrono::Utc::now().timestamp_millis();
+                    VIDEO_PLAYER_BROKER
+                        .send(VideoPlayerInput::SyncPlayReadyPoll(start, started));
+                }
             }
         }
 

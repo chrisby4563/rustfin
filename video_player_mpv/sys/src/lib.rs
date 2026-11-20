@@ -140,6 +140,7 @@ extern "C" {
     pub fn vpm_video_player_mpv_position(self_: *mut VpmVideoPlayerMpv) -> c_double;
     pub fn vpm_video_player_mpv_seek_by(self_: *mut VpmVideoPlayerMpv, seconds: c_int);
     pub fn vpm_video_player_mpv_seek_to(self_: *mut VpmVideoPlayerMpv, seconds: c_uint);
+    pub fn vpm_video_player_mpv_seek_to_precise(self_: *mut VpmVideoPlayerMpv, seconds: c_double);
     pub fn vpm_video_player_mpv_set_audio_track(
         self_: *mut VpmVideoPlayerMpv,
         audio_track_id: c_uint,

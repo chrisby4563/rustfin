@@ -21,3 +21,15 @@ macro_rules! assert_initialized_main_thread {
 
 pub use auto::*;
 mod auto;
+
+use glib::translate::ToGlibPtr;
+
+impl VideoPlayerMpv {
+    /// Auf Bruchteile einer Sekunde genau springen (von Hand ergänzt, nicht
+    /// aus der GIR erzeugt).
+    pub fn seek_to_precise(&self, seconds: f64) {
+        unsafe {
+            ffi::vpm_video_player_mpv_seek_to_precise(self.to_glib_none().0, seconds);
+        }
+    }
+}
