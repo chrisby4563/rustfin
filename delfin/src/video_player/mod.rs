@@ -195,6 +195,7 @@ impl Component for VideoPlayer {
                     #[wrap(Some)]
                     set_child = &adw::HeaderBar {
                         add_css_class: "osd",
+                        add_css_class: "player-header",
                     },
                 },
 

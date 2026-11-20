@@ -21,8 +21,8 @@ impl SimpleComponent for MediaButton {
     view! {
         gtk::Button {
             add_css_class: "pill",
-            set_width_request: display.width(),
-            set_margin_bottom: 10,
+            add_css_class: "library-pill",
+            set_margin_bottom: 4,
 
             #[wrap(Some)]
             set_child = &adw::ButtonContent {
@@ -42,7 +42,7 @@ impl SimpleComponent for MediaButton {
         root: Self::Root,
         _sender: relm4::ComponentSender<Self>,
     ) -> relm4::ComponentParts<Self> {
-        let (media, display) = init;
+        let (media, _display) = init;
 
         let collection_type: CollectionType = media.clone().collection_type.into();
 

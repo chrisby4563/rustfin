@@ -165,8 +165,7 @@ impl AsyncComponent for MediaTile {
                 },
 
                 add_overlay = &gtk::Spinner {
-                    #[watch]
-                    set_visible: model.loading,
+                    set_visible: false,
                     start: (),
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::Center,
@@ -272,6 +271,7 @@ impl AsyncComponent for MediaTile {
         let item_label = model.get_item_label();
 
         let widgets = view_output!();
+        crate::utils::fade::fade_in_on_load(&widgets.image);
         model.menu.set_parent(&widgets.overlay);
         model.menu.set_has_arrow(false);
         model.menu.set_position(gtk::PositionType::Bottom);

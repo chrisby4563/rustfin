@@ -282,6 +282,7 @@ fn chapters_section(api_client: &Arc<ApiClient>, item: &BaseItemDto) -> Option<g
                 }
             });
         }
+        crate::utils::fade::fade_in_on_load(&picture);
         card.append(&picture);
         let name = chapter.name.clone().unwrap_or_default();
         card.append(

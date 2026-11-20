@@ -46,6 +46,7 @@ impl SimpleComponent for PlayPause {
     view! {
         gtk::Button {
             set_focus_on_click: false,
+            add_css_class: "player-play",
 
             #[watch]
             set_icon_name: if model.playing {

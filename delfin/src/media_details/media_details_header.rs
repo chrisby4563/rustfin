@@ -76,6 +76,7 @@ impl AsyncComponent for MediaDetailsHeader {
                 set_overflow: gtk::Overflow::Hidden,
 
                 // Hintergrundbild über die ganze Breite.
+                #[name = "backdrop_picture"]
                 gtk::Picture {
                     #[watch]
                     set_paintable: model.backdrop.as_ref(),
@@ -86,8 +87,7 @@ impl AsyncComponent for MediaDetailsHeader {
                 },
 
                 add_overlay = &gtk::Spinner {
-                    #[watch]
-                    set_visible: model.backdrop.is_none(),
+                    set_visible: false,
                     set_spinning: true,
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::Center,
@@ -126,6 +126,7 @@ impl AsyncComponent for MediaDetailsHeader {
                             #[name = "poster_box"]
                             gtk::Box {
                                 set_valign: gtk::Align::End,
+                                #[name = "poster_picture"]
                                 gtk::Picture {
                                     #[watch]
                                     set_paintable: model.poster.as_ref(),
@@ -338,6 +339,8 @@ impl AsyncComponent for MediaDetailsHeader {
         }
 
         let widgets = view_output!();
+        crate::utils::fade::fade_in_on_load(&widgets.backdrop_picture);
+        crate::utils::fade::fade_in_on_load(&widgets.poster_picture);
 
         // Mehrere Versionen (z. B. 4K und 1080p): Auswahl neben dem Abspielknopf.
         if let (Some(item_id), Some(sources)) = (model.item.id, model.item.media_sources.as_ref()) {

@@ -39,3 +39,60 @@
 .chapter-thumbnail {
   border-radius: 6px;
 }
+
+// Konzept: Player im gleichen Stil – Verläufe statt Kästen, runde Knöpfe,
+// Akzentfarbe am Fortschritt, Titel in der Titelschrift.
+.video-player-page headerbar.player-header {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+  box-shadow: none;
+  min-height: 56px;
+
+  .title {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+  }
+}
+
+.video-player .video-player-controls {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0));
+  border-radius: 0;
+  margin: 0;
+  padding: 24px 24px 14px;
+  box-shadow: none;
+
+  button {
+    border-radius: 999px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  button.player-play {
+    min-width: 48px;
+    min-height: 48px;
+    background: unquote("@accent_bg_color");
+    color: unquote("@accent_fg_color");
+  }
+
+  scale {
+    trough {
+      min-height: 4px;
+      border-radius: 2px;
+    }
+    highlight {
+      background: unquote("@accent_bg_color");
+      border-radius: 2px;
+    }
+    slider {
+      background: unquote("@accent_bg_color");
+      min-width: 14px;
+      min-height: 14px;
+      box-shadow: none;
+    }
+  }
+}
+
+.video-player .next-up {
+  background: unquote("alpha(@card_bg_color, 0.92)");
+  border: 1px solid unquote("alpha(@window_fg_color, 0.12)");
+}

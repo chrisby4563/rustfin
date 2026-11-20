@@ -300,6 +300,7 @@ impl Component for EpisodeThumbnail {
                 set_overflow: gtk::Overflow::Hidden,
                 add_css_class: "episode-thumbnail",
 
+                #[name = "thumb_picture"]
                 gtk::Picture {
                     #[watch]
                     set_paintable: model.thumbnail.as_ref(),
@@ -329,8 +330,7 @@ impl Component for EpisodeThumbnail {
                 },
 
                 add_overlay = &gtk::Spinner {
-                    #[watch]
-                    set_visible: model.thumbnail.is_none(),
+                    set_visible: false,
                     set_spinning: true,
                     set_halign: gtk::Align::Center,
                     set_valign: gtk::Align::Center,
@@ -377,6 +377,7 @@ impl Component for EpisodeThumbnail {
         };
 
         let widgets = view_output!();
+        crate::utils::fade::fade_in_on_load(&widgets.thumb_picture);
 
         ComponentParts { model, widgets }
     }

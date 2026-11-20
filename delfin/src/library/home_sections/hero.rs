@@ -4,7 +4,8 @@ use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use gtk::prelude::*;
 use jellyfin_api::types::{BaseItemDto, BaseItemKind};
-use relm4::gtk;
+use relm4::{adw, gtk};
+use adw::prelude::*;
 
 use crate::{
     app::{AppInput, APP_BROKER},
@@ -16,7 +17,12 @@ const HERO_HEIGHT: i32 = 400;
 const HERO_MAX: usize = 5;
 
 struct Slot {
-    picture: gtk::Picture,
+    /// Zwei Bilder im Stapel: das neue wird hinten gefüllt, dann übergeblendet.
+    stack: gtk::Stack,
+    pictures: [gtk::Picture; 2],
+    front: usize,
+    hovered: bool,
+    text: gtk::Box,
     title: gtk::Label,
     meta: gtk::Label,
     progress: gtk::ProgressBar,
@@ -34,13 +40,22 @@ pub fn hero(api_client: Arc<ApiClient>) -> gtk::Widget {
         .css_classes(["home-hero"])
         .visible(false)
         .build();
-    let picture = gtk::Picture::builder()
-        .content_fit(gtk::ContentFit::Cover)
-        .can_shrink(true)
-        .hexpand(true)
-        .height_request(HERO_HEIGHT)
+    let make_picture = || {
+        gtk::Picture::builder()
+            .content_fit(gtk::ContentFit::Cover)
+            .can_shrink(true)
+            .hexpand(true)
+            .height_request(HERO_HEIGHT)
+            .build()
+    };
+    let pictures = [make_picture(), make_picture()];
+    let stack = gtk::Stack::builder()
+        .transition_type(gtk::StackTransitionType::Crossfade)
+        .transition_duration(600)
         .build();
-    overlay.set_child(Some(&picture));
+    stack.add_named(&pictures[0], Some("a"));
+    stack.add_named(&pictures[1], Some("b"));
+    overlay.set_child(Some(&stack));
     overlay.add_overlay(
         &gtk::Box::builder()
             .css_classes(["home-hero-shade"])
@@ -112,7 +127,11 @@ pub fn hero(api_client: Arc<ApiClient>) -> gtk::Widget {
     overlay.add_overlay(&dots);
 
     let slot = Rc::new(RefCell::new(Slot {
-        picture,
+        stack,
+        pictures,
+        front: 0,
+        hovered: false,
+        text: text.clone(),
         title,
         meta,
         progress,
@@ -121,6 +140,37 @@ pub fn hero(api_client: Arc<ApiClient>) -> gtk::Widget {
         textures: Vec::new(),
         current: 0,
     }));
+
+    // Maus darüber: nicht weiterblättern.
+    let motion = gtk::EventControllerMotion::new();
+    motion.connect_enter({
+        let slot = slot.clone();
+        move |_, _, _| slot.borrow_mut().hovered = true
+    });
+    motion.connect_leave({
+        let slot = slot.clone();
+        move |_| slot.borrow_mut().hovered = false
+    });
+    overlay.add_controller(motion);
+
+    // Alle 8 s zum nächsten Titel; endet, wenn die Startseite weg ist.
+    let weak = overlay.downgrade();
+    gtk::glib::timeout_add_seconds_local(8, {
+        let slot = slot.clone();
+        move || {
+            let Some(overlay) = weak.upgrade() else {
+                return gtk::glib::ControlFlow::Break;
+            };
+            let (hovered, count, current) = {
+                let s = slot.borrow();
+                (s.hovered, s.items.len(), s.current)
+            };
+            if !hovered && count > 1 && overlay.is_mapped() {
+                show(&slot, (current + 1) % count);
+            }
+            gtk::glib::ControlFlow::Continue
+        }
+    });
 
     play.connect_clicked({
         let slot = slot.clone();
@@ -234,8 +284,21 @@ fn show(slot: &Rc<RefCell<Slot>>, index: usize) {
     let Some(item) = s.items.get(index).cloned() else {
         return;
     };
+    let changed = s.current != index;
     s.current = index;
-    s.picture.set_paintable(s.textures[index].as_ref());
+    if changed {
+        // Neues Bild hinten einsetzen und überblenden.
+        let back = 1 - s.front;
+        s.pictures[back].set_paintable(s.textures[index].as_ref());
+        s.stack.set_visible_child(&s.pictures[back]);
+        s.front = back;
+        // Text weich einblenden.
+        let text = s.text.clone();
+        let target = adw::CallbackAnimationTarget::new(move |value| text.set_opacity(value));
+        adw::TimedAnimation::new(&s.text, 0.0, 1.0, 450, target).play();
+    } else {
+        s.pictures[s.front].set_paintable(s.textures[index].as_ref());
+    }
     let title = item
         .series_name
         .clone()

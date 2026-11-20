@@ -205,3 +205,27 @@ window {
 .settings-heading {
   font-family: "Space Grotesk", "Inter", sans-serif;
 }
+
+// Konzept: „Meine Medien“ als schlanke Knöpfe.
+button.library-pill {
+  min-height: 44px;
+  padding: 0 20px;
+  font-weight: 600;
+  background: unquote("@card_bg_color");
+  border: 1px solid unquote("alpha(@window_fg_color, 0.15)");
+  transition: background 150ms, border-color 150ms;
+
+  &:hover {
+    border-color: unquote("@accent_color");
+  }
+}
+
+// Konzept: pulsierende Platzhalter, bis ein Bild geladen ist.
+@keyframes skeleton-pulse {
+  0% { background-color: unquote("alpha(@window_fg_color, 0.05)"); }
+  50% { background-color: unquote("alpha(@window_fg_color, 0.12)"); }
+  100% { background-color: unquote("alpha(@window_fg_color, 0.05)"); }
+}
+.skeleton {
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}

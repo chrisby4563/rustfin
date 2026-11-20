@@ -157,6 +157,7 @@ impl Component for CastRow {
                 };
                 if let Ok(texture) = gdk::Texture::from_bytes(&glib::Bytes::from_owned(bytes)) {
                     avatar.set_custom_image(Some(&texture));
+                    crate::utils::fade::fade_in(avatar.upcast_ref());
                 }
             }
         }

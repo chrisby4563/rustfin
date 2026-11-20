@@ -118,7 +118,8 @@ impl Home {
                         .launch(HomeSectionMyMediaInit {
                             api_client: api_client.clone(),
                             user_views: user_views.clone(),
-                            small: matches!(section, HomeSection::MyMediaSmall),
+                            // Konzept: immer als schlanke Knöpfe (die großen Bilder doppelten die Reiter).
+                            small: true,
                         })
                         .detach();
                     sections_container.append(section.widget());

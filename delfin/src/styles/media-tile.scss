@@ -82,3 +82,13 @@
     text-decoration: none;
   }
 }
+
+// Konzept: Kachel hebt sich beim Überfahren leicht an.
+.media-tile {
+  overlay {
+    transition: transform 180ms ease-out;
+  }
+  &.hover overlay {
+    transform: translateY(-4px);
+  }
+}

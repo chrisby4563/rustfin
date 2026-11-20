@@ -16,3 +16,4 @@ pub mod round;
 pub mod shift_state;
 pub mod ticks;
 pub mod user_config;
+pub mod fade;
