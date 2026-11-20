@@ -68,6 +68,8 @@ pub enum MediaTileInput {
     SetPlayed(bool),
     RemoveFromResume,
     GoToSeries,
+    Delete,
+    Deleted,
 }
 
 #[derive(Debug)]
@@ -388,6 +390,18 @@ impl AsyncComponent for MediaTile {
                     }
                 };
             }
+            MediaTileInput::Delete => {
+                self.menu.popdown();
+                let sender = sender.clone();
+                crate::utils::delete_item::confirm_delete(
+                    &self.media,
+                    self.api_client.clone(),
+                    move || sender.input(MediaTileInput::Deleted),
+                );
+            }
+            MediaTileInput::Deleted => {
+                self.hidden = true;
+            }
             MediaTileInput::ShowDetails => {
                 match self.media.type_ {
                     Some(BaseItemKind::CollectionFolder) => {
@@ -477,6 +491,31 @@ impl MediaTile {
             add(tr!("library-tile-go-to-series"), || MediaTileInput::GoToSeries);
         }
         add(tr!("library-tile-details"), || MediaTileInput::ShowDetails);
+        if crate::utils::delete_item::can_delete()
+            && matches!(
+                self.media.type_,
+                Some(
+                    BaseItemKind::Movie
+                        | BaseItemKind::Series
+                        | BaseItemKind::Season
+                        | BaseItemKind::Episode
+                )
+            )
+        {
+            let delete = gtk::Button::builder()
+                .label(tr!("delete-menu"))
+                .css_classes(["flat", "destructive-action"])
+                .build();
+            if let Some(child) = delete.child().and_downcast::<gtk::Label>() {
+                child.set_xalign(0.0);
+            }
+            delete.connect_clicked({
+                let sender = sender.clone();
+                move |_| sender.input(MediaTileInput::Delete)
+            });
+            list.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
+            list.append(&delete);
+        }
 
         self.menu.set_child(Some(&list));
     }

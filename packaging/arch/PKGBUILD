@@ -1,0 +1,39 @@
+# Eigenes Paket für den Delfin-Fork (Branch chrisby).
+# Baut den zuletzt committeten Stand aus dem lokalen Repo:
+#   cd ~/projects/delfin/packaging/arch && makepkg -si
+pkgname=delfin-chrisby
+pkgver=0
+pkgrel=1
+pkgdesc="Jellyfin client (GTK4/mpv) – fork with SyncPlay, filters, chapters and more"
+arch=('x86_64')
+url="https://github.com/chrisby4563/delfin"
+license=('GPL-3.0-or-later')
+depends=('gtk4' 'libadwaita' 'mpv' 'libepoxy' 'openssl' 'glib2' 'gst-plugins-bad-libs' 'gst-plugins-base-libs')
+makedepends=('git' 'meson' 'cargo' 'appstream')
+provides=('delfin')
+conflicts=('delfin' 'delfin-git')
+options=('!lto' '!debug')
+source=("delfin::git+file://${startdir}/../..#branch=chrisby")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd delfin
+  printf "0.4.8.r%s.g%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  cd delfin
+  # Rust-Abhängigkeiten vorab laden (Bau selbst dann ohne Netz möglich).
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  export RUSTUP_TOOLCHAIN=stable
+  arch-meson delfin build -Dprofile=release
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}

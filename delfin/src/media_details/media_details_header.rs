@@ -321,6 +321,28 @@ impl AsyncComponent for MediaDetailsHeader {
             }
         }
 
+        // Löschen (nur wenn das Konto darf): Film, Serie oder Staffel.
+        if crate::utils::delete_item::can_delete() {
+            let delete = gtk::Button::builder()
+                .icon_name("user-trash-symbolic")
+                .tooltip_text(tr!("delete-menu"))
+                .valign(gtk::Align::Center)
+                .css_classes(["flat", "circular"])
+                .build();
+            delete.connect_clicked({
+                let item = model.item.clone();
+                let api_client = model.api_client.clone();
+                move |_| {
+                    crate::utils::delete_item::confirm_delete(&item, api_client.clone(), || {
+                        APP_BROKER.send(AppInput::NavigateBack);
+                    });
+                }
+            });
+            if let Some(parent) = widgets.btn_play_next.parent().and_downcast::<gtk::Box>() {
+                parent.append(&delete);
+            }
+        }
+
         AsyncComponentParts { model, widgets }
     }
 

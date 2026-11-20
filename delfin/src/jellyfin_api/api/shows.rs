@@ -49,7 +49,7 @@ impl ApiClient {
 
         url.query_pairs_mut()
             .append_pair("userId", &self.account.id.to_string())
-            .append_pair("fields", "Overview");
+            .append_pair("fields", "Overview,MediaSourceCount");
 
         if let Some(season_id) = season_id {
             url.query_pairs_mut()

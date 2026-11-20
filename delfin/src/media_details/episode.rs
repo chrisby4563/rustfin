@@ -27,12 +27,17 @@ pub(crate) struct Episode {
     thumbnail: OnceCell<Controller<EpisodeThumbnail>>,
     /// Medieninfo schon geladen (Popover am Info-Knopf).
     info_loaded: bool,
+    versions_loaded: bool,
+    hidden: bool,
 }
 
 #[derive(Debug)]
 pub(crate) enum EpisodeInput {
     ToggleWatched(bool),
     LoadMediaInfo,
+    LoadVersions,
+    Delete,
+    Deleted,
 }
 
 #[relm4::component(pub(crate) async)]
@@ -54,6 +59,30 @@ impl AsyncComponent for Episode {
                 overview.split_once('\n').unwrap_or((overview, "")).0
             } else { "" },
             set_subtitle_lines: 3,
+
+            #[watch]
+            set_visible: !model.hidden,
+
+            // Mehrere Fassungen der Folge: Auswahl wie bei Filmen.
+            add_suffix = &gtk::MenuButton {
+                set_icon_name: "view-paged-symbolic",
+                set_css_classes: &["image-button", "flat"],
+                set_valign: gtk::Align::Center,
+                set_tooltip: tr!("media-details-version"),
+                set_visible: model.media.media_source_count.unwrap_or(1) > 1,
+
+                #[wrap(Some)]
+                #[name = "versions_popover"]
+                set_popover = &gtk::Popover {
+                    connect_show[sender] => move |_| {
+                        sender.input(EpisodeInput::LoadVersions);
+                    },
+                    gtk::Spinner {
+                        set_spinning: true,
+                        set_margin_all: 12,
+                    },
+                },
+            },
 
             // Medieninfo der Folge (Bild, Ton, Untertitel, Datei).
             add_suffix = &gtk::MenuButton {
@@ -110,6 +139,8 @@ impl AsyncComponent for Episode {
             api_client: api_client.clone(),
             thumbnail: OnceCell::new(),
             info_loaded: false,
+            versions_loaded: false,
+            hidden: false,
         };
 
         let title = match (&model.media.index_number, &model.media.name) {
@@ -127,6 +158,45 @@ impl AsyncComponent for Episode {
 
         model.thumbnail.set(thumbnail).unwrap();
 
+        // Rechtsklick / lange drücken: Löschen (nur wenn das Konto darf).
+        if crate::utils::delete_item::can_delete() {
+            let menu = gtk::Popover::new();
+            menu.set_parent(&root);
+            menu.set_has_arrow(true);
+            let delete = gtk::Button::builder()
+                .label(tr!("delete-menu"))
+                .css_classes(["flat", "destructive-action"])
+                .build();
+            delete.connect_clicked({
+                let sender = sender.clone();
+                let menu = menu.clone();
+                move |_| {
+                    menu.popdown();
+                    sender.input(EpisodeInput::Delete);
+                }
+            });
+            menu.set_child(Some(&delete));
+            let show = {
+                let menu = menu.clone();
+                move |x: f64, y: f64| {
+                    menu.set_pointing_to(Some(&gtk::gdk::Rectangle::new(x as i32, y as i32, 1, 1)));
+                    menu.popup();
+                }
+            };
+            let click = gtk::GestureClick::new();
+            click.set_button(gtk::gdk::BUTTON_SECONDARY);
+            click.connect_pressed({
+                let show = show.clone();
+                move |_, _, x, y| show(x, y)
+            });
+            root.add_controller(click);
+            let long_press = gtk::GestureLongPress::new();
+            long_press.set_touch_only(true);
+            long_press.connect_pressed(move |_, x, y| show(x, y));
+            root.add_controller(long_press);
+            root.connect_destroy(move |_| menu.unparent());
+        }
+
         AsyncComponentParts { model, widgets }
     }
 
@@ -138,6 +208,31 @@ impl AsyncComponent for Episode {
         _root: &Self::Root,
     ) {
         match message {
+            EpisodeInput::LoadVersions => {
+                if self.versions_loaded {
+                    return;
+                }
+                let Some(id) = self.media.id else {
+                    return;
+                };
+                let child: gtk::Widget = match self.api_client.get_item(&id).await {
+                    Ok(item) => versions_list(id, &item),
+                    Err(err) => gtk::Label::new(Some(&err.to_string())).upcast(),
+                };
+                widgets.versions_popover.set_child(Some(&child));
+                self.versions_loaded = true;
+            }
+            EpisodeInput::Delete => {
+                let sender = sender.clone();
+                crate::utils::delete_item::confirm_delete(
+                    &self.media,
+                    self.api_client.clone(),
+                    move || sender.input(EpisodeInput::Deleted),
+                );
+            }
+            EpisodeInput::Deleted => {
+                self.hidden = true;
+            }
             EpisodeInput::LoadMediaInfo => {
                 if self.info_loaded {
                     return;
@@ -317,4 +412,40 @@ impl Component for EpisodeThumbnail {
             }
         }
     }
+}
+
+/// Fassungen einer Folge als Auswahlliste (wie die Versionsauswahl bei Filmen).
+fn versions_list(item_id: uuid::Uuid, item: &BaseItemDto) -> gtk::Widget {
+    use crate::globals::SELECTED_VERSIONS;
+    let list = gtk::Box::new(gtk::Orientation::Vertical, 2);
+    list.set_margin_top(6);
+    list.set_margin_bottom(6);
+    let sources = item.media_sources.clone().unwrap_or_default();
+    let chosen = SELECTED_VERSIONS.read().get(&item_id).cloned();
+    let mut group: Option<gtk::CheckButton> = None;
+    for (index, source) in sources.iter().enumerate() {
+        let name = source
+            .name
+            .clone()
+            .unwrap_or_else(|| format!("Version {}", index + 1));
+        let check = gtk::CheckButton::with_label(&name);
+        if let Some(first) = &group {
+            check.set_group(Some(first));
+        } else {
+            group = Some(check.clone());
+        }
+        let is_chosen = match &chosen {
+            Some(chosen) => source.id.as_ref() == Some(chosen),
+            None => index == 0,
+        };
+        check.set_active(is_chosen);
+        let id = source.id.clone();
+        check.connect_toggled(move |check| {
+            if let (true, Some(id)) = (check.is_active(), &id) {
+                SELECTED_VERSIONS.write().insert(item_id, id.clone());
+            }
+        });
+        list.append(&check);
+    }
+    list.upcast()
 }

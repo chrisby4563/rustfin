@@ -1,6 +1,7 @@
 pub mod bif;
 pub mod constants;
 pub mod debounce;
+pub mod delete_item;
 pub mod device_profile;
 pub mod display_years;
 pub mod empty_component;

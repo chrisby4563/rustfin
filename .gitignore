@@ -11,3 +11,7 @@ video_player_mpv/sys/build/*.a
 
 # meson-Bauordner
 /_build
+/packaging/arch/src
+/packaging/arch/pkg
+/packaging/arch/delfin
+/packaging/arch/*.pkg.tar.*
