@@ -10,6 +10,7 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::{
+    config::video_player_config::{SegmentAction, SegmentActions},
     globals::CONFIG,
     jellyfin_api::{
         api::intro_skipper::{SegmentKind, SkipSegment},
@@ -63,9 +64,9 @@ pub(crate) struct SkipIntro {
     state: State,
     /// Intro dieser Folge schon automatisch übersprungen (danach nur noch Knopf,
     /// falls man zurückspult, um es doch zu sehen).
-    already_skipped: bool,
+    already_skipped: Vec<usize>,
     enabled: bool,
-    auto_skip: bool,
+    actions: SegmentActions,
 }
 
 #[derive(Debug)]
@@ -73,7 +74,7 @@ pub(crate) enum SkipIntroInput {
     Load(Uuid, Arc<ApiClient>),
     PositionUpdate(usize),
     SkipIntro,
-    ConfigUpdated(bool, bool),
+    ConfigUpdated(bool, SegmentActions),
 }
 
 #[relm4::component(pub(crate) async)]
@@ -117,9 +118,9 @@ impl AsyncComponent for SkipIntro {
             video_player,
             segments: Vec::new(),
             state: State::Hidden,
-            already_skipped: false,
+            already_skipped: Vec::new(),
             enabled: CONFIG.read().video_player.intro_skipper,
-            auto_skip: CONFIG.read().video_player.intro_skipper_auto_skip,
+            actions: CONFIG.read().video_player.segment_actions,
         };
 
         SkipIntro::subscribe_to_config(&sender);
@@ -153,7 +154,7 @@ impl AsyncComponent for SkipIntro {
                         Vec::new()
                     }
                 };
-                self.already_skipped = false;
+                self.already_skipped.clear();
                 self.state = State::Hidden;
             }
             SkipIntroInput::PositionUpdate(position) => {
@@ -163,34 +164,35 @@ impl AsyncComponent for SkipIntro {
                     return;
                 }
 
-                // Automatisch nur das Intro, und nur einmal je Folge.
-                if self.auto_skip && !self.already_skipped {
-                    if let Some((index, intro)) = self
-                        .segments
-                        .iter()
-                        .enumerate()
-                        .find(|(_, s)| s.kind == SegmentKind::Intro)
+                // Je Abschnittsart: automatisch (einmal je Folge), Knopf oder nichts.
+                for (index, segment) in self.segments.iter().enumerate() {
+                    if self.action(segment.kind) != SegmentAction::Skip
+                        || self.already_skipped.contains(&index)
                     {
-                        if intro.range().contains(&position) {
-                            self.already_skipped = true;
-                            if !crate::syncplay::intercept_seek(intro.end as usize) {
-                                self.video_player.borrow().seek_to(intro.end as usize);
-                            }
-                            self.state = State::Hidden;
-                            return;
+                        continue;
+                    }
+                    if segment.range().contains(&position) {
+                        self.already_skipped.push(index);
+                        if !crate::syncplay::intercept_seek(segment.end as usize) {
+                            self.video_player.borrow().seek_to(segment.end as usize);
                         }
-                        if intro.range_auto_skip_show().contains(&position) {
-                            let seconds = (intro.start - position).ceil().max(1.0) as usize;
-                            self.state = State::AutoSkipCountdown(index, seconds);
-                            return;
-                        }
+                        self.state = State::Hidden;
+                        return;
+                    }
+                    if segment.range_auto_skip_show().contains(&position) {
+                        let seconds = (segment.start - position).ceil().max(1.0) as usize;
+                        self.state = State::AutoSkipCountdown(index, seconds);
+                        return;
                     }
                 }
 
                 self.state = self
                     .segments
                     .iter()
-                    .position(|s| s.range_show().contains(&position))
+                    .position(|s| {
+                        self.action(s.kind) != SegmentAction::Nothing
+                            && s.range_show().contains(&position)
+                    })
                     .map(State::Visible)
                     .unwrap_or(State::Hidden);
             }
@@ -200,8 +202,8 @@ impl AsyncComponent for SkipIntro {
                     .segment_index()
                     .and_then(|index| self.segments.get(index))
                 {
-                    if segment.kind == SegmentKind::Intro {
-                        self.already_skipped = true;
+                    if let Some(index) = self.state.segment_index() {
+                        self.already_skipped.push(index);
                     }
                     if !crate::syncplay::intercept_seek(segment.end as usize) {
                         self.video_player.borrow().seek_to(segment.end as usize);
@@ -209,20 +211,29 @@ impl AsyncComponent for SkipIntro {
                     self.state = State::Hidden;
                 }
             }
-            SkipIntroInput::ConfigUpdated(enabled, auto_skip) => {
+            SkipIntroInput::ConfigUpdated(enabled, actions) => {
                 self.enabled = enabled;
-                self.auto_skip = auto_skip;
+                self.actions = actions;
             }
         }
     }
 }
 
 impl SkipIntro {
+    fn action(&self, kind: SegmentKind) -> SegmentAction {
+        match kind {
+            SegmentKind::Intro => self.actions.intro,
+            SegmentKind::Recap => self.actions.recap,
+            SegmentKind::Outro => self.actions.outro,
+            SegmentKind::Preview => self.actions.preview,
+        }
+    }
+
     fn subscribe_to_config(sender: &AsyncComponentSender<Self>) {
         CONFIG.subscribe(sender.input_sender(), |config| {
             SkipIntroInput::ConfigUpdated(
                 config.video_player.intro_skipper,
-                config.video_player.intro_skipper_auto_skip,
+                config.video_player.segment_actions,
             )
         });
     }

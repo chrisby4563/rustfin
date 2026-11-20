@@ -1,6 +1,6 @@
 mod audio_tracks;
 pub(crate) mod chapters;
-mod quality;
+pub(crate) mod quality;
 mod mini_player;
 pub(super) mod fullscreen;
 pub(super) mod next_prev_episode;

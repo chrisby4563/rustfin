@@ -242,7 +242,9 @@ fn show(slot: &Rc<RefCell<Slot>>, index: usize) {
         .or(item.name.clone())
         .unwrap_or_default();
     s.title.set_label(&title);
-    s.meta.set_label(&meta_line(&item));
+    let meta = meta_line(&item);
+    s.meta.set_visible(!meta.is_empty());
+    s.meta.set_label(&meta);
     let fraction = item
         .user_data
         .as_ref()

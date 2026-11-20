@@ -126,7 +126,9 @@ impl Component for VideoPlayerPreferences {
                         },
                     },
 
+                    // Ersetzt durch „Abschnitte“ auf der Seite Wiedergabe.
                     add_row = &adw::SwitchRow {
+                        set_visible: false,
                         set_title: tr!("prefs-vp-intro-skipper-auto-skip.title"),
                         set_subtitle: tr!("prefs-vp-intro-skipper-auto-skip.subtitle"),
                         set_active: video_player_config.intro_skipper_auto_skip,

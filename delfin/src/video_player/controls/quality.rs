@@ -135,7 +135,7 @@ impl Component for Quality {
     }
 }
 
-fn quality_label(quality: StreamQuality, auto_transcoded: Option<bool>) -> String {
+pub(crate) fn quality_label(quality: StreamQuality, auto_transcoded: Option<bool>) -> String {
     match quality {
         StreamQuality::Auto => match auto_transcoded {
             Some(true) => format!("{} ({})", tr!("vp-quality-auto"), tr!("vp-quality-auto-server")),

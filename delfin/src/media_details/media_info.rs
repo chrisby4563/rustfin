@@ -133,3 +133,101 @@ fn file_text(source: &MediaSourceInfo) -> Option<String> {
     }
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
+
+/// Konzept Film: Medieninfo als Kasten neben Kapiteln und Besetzung.
+pub(crate) fn media_info_box(item: &BaseItemDto) -> Option<gtk::Widget> {
+    let source = item.media_sources.as_ref()?.first()?;
+    let streams = source.media_streams.clone().unwrap_or_default();
+    let of_type = |kind: MediaStreamType| -> Vec<&MediaStream> {
+        streams.iter().filter(|s| s.type_ == Some(kind)).collect()
+    };
+    let video = of_type(MediaStreamType::Video);
+    let audio = of_type(MediaStreamType::Audio);
+    let subtitles = of_type(MediaStreamType::Subtitle);
+    if video.is_empty() && audio.is_empty() {
+        return None;
+    }
+
+    let card = gtk::Box::builder()
+        .orientation(gtk::Orientation::Vertical)
+        .spacing(10)
+        .valign(gtk::Align::Start)
+        .width_request(300)
+        .css_classes(["media-info-card"])
+        .build();
+    card.append(
+        &gtk::Label::builder()
+            .label(tr!("media-details-media-info"))
+            .xalign(0.0)
+            .css_classes(["heading", "settings-heading"])
+            .build(),
+    );
+
+    let short = |list: &[&MediaStream]| -> String {
+        let names: Vec<String> = list.iter().map(|s| stream_text(s)).collect();
+        if names.len() > 3 {
+            format!("{} · +{}", names[..3].join(" · "), names.len() - 3)
+        } else {
+            names.join(" · ")
+        }
+    };
+    let mut rows: Vec<(String, String)> = Vec::new();
+    if let Some(v) = video.first() {
+        rows.push((tr!("media-details-media-info-video").to_string(), video_text(v)));
+    }
+    if !audio.is_empty() {
+        rows.push((tr!("media-details-media-info-audio").to_string(), short(&audio)));
+    }
+    if !subtitles.is_empty() {
+        let mut langs: Vec<String> = Vec::new();
+        for s in &subtitles {
+            let lang = s
+                .language
+                .clone()
+                .or_else(|| s.display_title.clone())
+                .unwrap_or_else(|| "?".into());
+            if !langs.contains(&lang) {
+                langs.push(lang);
+            }
+        }
+        rows.push((tr!("media-details-media-info-subtitle").to_string(), langs.join(", ")));
+    }
+    if let Some(file) = file_text(source) {
+        rows.push((tr!("media-details-media-info-file").to_string(), file));
+    }
+    rows.push((
+        tr!("media-details-media-info-playback").to_string(),
+        if crate::jellyfin_api::api_client::ApiClient::is_server_transcoded(item) {
+            tr!("media-details-media-info-playback-transcode").to_string()
+        } else {
+            tr!("media-details-media-info-playback-direct").to_string()
+        },
+    ));
+
+    for (key, value) in rows {
+        let row = gtk::Box::builder()
+            .spacing(12)
+            .css_classes(["media-info-line"])
+            .build();
+        row.append(
+            &gtk::Label::builder()
+                .label(&key)
+                .xalign(0.0)
+                .valign(gtk::Align::Start)
+                .css_classes(["dim-label"])
+                .build(),
+        );
+        row.append(
+            &gtk::Label::builder()
+                .label(&value)
+                .xalign(1.0)
+                .hexpand(true)
+                .wrap(true)
+                .selectable(true)
+                .justify(gtk::Justification::Right)
+                .build(),
+        );
+        card.append(&row);
+    }
+    Some(card.upcast())
+}

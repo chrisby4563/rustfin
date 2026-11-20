@@ -339,21 +339,6 @@ impl AsyncComponent for MediaDetailsHeader {
 
         let widgets = view_output!();
 
-        // Film: Medieninfo als Knopf in der Reihe.
-        if is_movie {
-            if let Some(info) = super::media_info::media_info_widget(&model.item, true) {
-                let popover = gtk::Popover::builder().child(&info).width_request(440).build();
-                let button = gtk::MenuButton::builder()
-                    .icon_name("help-about-symbolic")
-                    .tooltip_text(tr!("media-details-media-info"))
-                    .valign(gtk::Align::Center)
-                    .css_classes(["circular", "detail-round"])
-                    .popover(&popover)
-                    .build();
-                widgets.header_buttons.append(&button);
-            }
-        }
-
         // Mehrere Versionen (z. B. 4K und 1080p): Auswahl neben dem Abspielknopf.
         if let (Some(item_id), Some(sources)) = (model.item.id, model.item.media_sources.as_ref()) {
             if sources.len() > 1 {

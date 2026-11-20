@@ -37,6 +37,46 @@ pub struct VideoPlayerConfig {
     pub preferred_audio_languages: String,
 
     pub mpv_prefs: MpvPrefs,
+
+    /// Was bei Intro/Rückblick/Abspann/Vorschau passiert.
+    pub segment_actions: SegmentActions,
+    /// Qualität beim Start von Delfin (im Player änderbar).
+    pub default_quality: crate::jellyfin_api::api::item::StreamQuality,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone, Copy)]
+pub enum SegmentAction {
+    /// Automatisch überspringen (mit kurzem Countdown).
+    Skip,
+    /// Knopf zum Überspringen zeigen.
+    #[default]
+    Ask,
+    /// Nichts tun.
+    Nothing,
+}
+
+impl SegmentAction {
+    pub const ALL: [SegmentAction; 3] = [Self::Skip, Self::Ask, Self::Nothing];
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, Clone, Copy)]
+#[serde(default)]
+pub struct SegmentActions {
+    pub intro: SegmentAction,
+    pub recap: SegmentAction,
+    pub outro: SegmentAction,
+    pub preview: SegmentAction,
+}
+
+impl Default for SegmentActions {
+    fn default() -> Self {
+        Self {
+            intro: SegmentAction::Skip,
+            recap: SegmentAction::Ask,
+            outro: SegmentAction::Ask,
+            preview: SegmentAction::Ask,
+        }
+    }
 }
 
 impl Default for VideoPlayerConfig {
@@ -63,6 +103,9 @@ impl Default for VideoPlayerConfig {
             preferred_audio_languages: "de,deu,ger".to_string(),
 
             mpv_prefs: MpvPrefs::default(),
+
+            segment_actions: SegmentActions::default(),
+            default_quality: Default::default(),
         }
     }
 }

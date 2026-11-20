@@ -91,6 +91,20 @@ impl ApiClient {
                 .append_pair("SeriesId", &series_id.to_string());
         }
 
+        // Wie die Weboberfläche: Zeitgrenze und „Erneut ansehen“ aus den Anzeige-Einstellungen.
+        use crate::utils::user_config::display_pref;
+        let max_days: i64 = display_pref("maxDaysForNextUp")
+            .and_then(|d| d.parse().ok())
+            .unwrap_or(365);
+        if max_days > 0 {
+            let cutoff = chrono::Utc::now() - chrono::Duration::days(max_days);
+            url.query_pairs_mut()
+                .append_pair("nextUpDateCutoff", &cutoff.to_rfc3339());
+        }
+        let rewatching = display_pref("enableRewatchingInNextUp").as_deref() == Some("true");
+        url.query_pairs_mut()
+            .append_pair("enableRewatching", &rewatching.to_string());
+
         let res: BaseItemDtoQueryResult = self.client.get(url).send().await?.json().await?;
 
         Ok(res.items)

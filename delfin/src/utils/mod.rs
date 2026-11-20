@@ -15,3 +15,4 @@ pub mod rgba;
 pub mod round;
 pub mod shift_state;
 pub mod ticks;
+pub mod user_config;

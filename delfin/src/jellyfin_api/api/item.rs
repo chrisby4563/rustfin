@@ -8,7 +8,7 @@ use crate::{
 };
 
 /// Qualitätsstufe im Player.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum StreamQuality {
     /// Direkt abspielen; Disc-Abbilder und 4K wandelt der Server auf 1080p.
     #[default]

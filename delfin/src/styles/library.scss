@@ -191,3 +191,17 @@ entry.qc-entry {
   font-size: 15px;
   letter-spacing: 3px;
 }
+
+// Konzept: Inter für Text, Space Grotesk für Titel.
+window {
+  font-family: "Inter", sans-serif;
+}
+.header-brand,
+.home-hero-title,
+.media-details-header-title,
+.title-1,
+.title-2,
+.title-3,
+.settings-heading {
+  font-family: "Space Grotesk", "Inter", sans-serif;
+}

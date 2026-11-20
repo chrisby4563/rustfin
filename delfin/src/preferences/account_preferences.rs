@@ -173,6 +173,20 @@ pub fn page(auth: Auth, window: &adw::PreferencesWindow) -> adw::PreferencesPage
         }
     });
 
+    // Passwort ändern (wie im Jellyfin-Profil).
+    let password_row = adw::ActionRow::builder()
+        .title(tr!("prefs-account-password.title"))
+        .subtitle(tr!("prefs-account-password.subtitle"))
+        .build();
+    let password_button = pill(tr!("prefs-account-password.button"), &[]);
+    password_button.connect_clicked({
+        let api_client = api_client.clone();
+        let window = window.clone();
+        move |_| password_dialog(&api_client, &window)
+    });
+    password_row.add_suffix(&password_button);
+    account_group.add(&password_row);
+
     // Quick Connect: Code eines anderen Geräts freigeben.
     let qc_row = adw::ActionRow::builder()
         .title(tr!("prefs-account-qc.title"))
@@ -234,4 +248,70 @@ pub fn page(auth: Auth, window: &adw::PreferencesWindow) -> adw::PreferencesPage
     page.add(&account_group);
 
     page
+}
+
+fn password_dialog(api_client: &Arc<ApiClient>, window: &adw::PreferencesWindow) {
+    let current = adw::PasswordEntryRow::builder()
+        .title(tr!("prefs-account-password.current"))
+        .build();
+    let new = adw::PasswordEntryRow::builder()
+        .title(tr!("prefs-account-password.new"))
+        .build();
+    let repeat = adw::PasswordEntryRow::builder()
+        .title(tr!("prefs-account-password.repeat"))
+        .build();
+    let list = gtk::ListBox::builder()
+        .selection_mode(gtk::SelectionMode::None)
+        .css_classes(["boxed-list"])
+        .build();
+    list.append(&current);
+    list.append(&new);
+    list.append(&repeat);
+
+    let dialog = adw::MessageDialog::builder()
+        .heading(tr!("prefs-account-password.title"))
+        .transient_for(window)
+        .modal(true)
+        .extra_child(&list)
+        .build();
+    dialog.add_responses(&[
+        ("cancel", tr!("prefs-account-password.cancel")),
+        ("save", tr!("prefs-account-password.save")),
+    ]);
+    dialog.set_response_appearance("save", adw::ResponseAppearance::Suggested);
+    dialog.set_default_response(Some("save"));
+    dialog.set_close_response("cancel");
+
+    let api_client = api_client.clone();
+    let window = window.clone();
+    dialog.connect_response(Some("save"), move |_, _| {
+        let new_pw = new.text().to_string();
+        if new_pw != repeat.text().as_str() {
+            window.add_toast(adw::Toast::new(tr!("prefs-account-password.mismatch")));
+            return;
+        }
+        let current_pw = current.text().to_string();
+        let api_client = api_client.clone();
+        let window = window.clone();
+        gtk::glib::spawn_future_local(async move {
+            let ok = run_bg(async move {
+                let mut url = api_client.root.join("Users/Password").ok()?;
+                url.query_pairs_mut()
+                    .append_pair("userId", &api_client.account.id.to_string());
+                let body = serde_json::json!({ "CurrentPw": current_pw, "NewPw": new_pw });
+                let response = api_client.client.post(url).json(&body).send().await.ok()?;
+                Some(response.status().is_success())
+            })
+            .await
+            .flatten()
+            .unwrap_or(false);
+            let text = if ok {
+                tr!("prefs-account-password.done").to_string()
+            } else {
+                tr!("prefs-account-password.failed").to_string()
+            };
+            window.add_toast(adw::Toast::new(&text));
+        });
+    });
+    dialog.present();
 }

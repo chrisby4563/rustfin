@@ -1,5 +1,5 @@
 pub mod backends;
-mod controls;
+pub(crate) mod controls;
 mod keybindings;
 mod mpris;
 mod next_up;
@@ -623,8 +623,9 @@ impl Component for VideoPlayer {
                     }
                 };
 
-                // Play next episode if available
-                if let Some(next) = &self.next {
+                // Nächste Folge, wenn in Jellyfin eingeschaltet (Standard: an).
+                let auto_play = crate::utils::user_config::get_bool("EnableNextEpisodeAutoPlay", true);
+                if let Some(next) = self.next.as_ref().filter(|_| auto_play) {
                     APP_BROKER.send(AppInput::PlayVideo(next.clone()));
                     return;
                 }
@@ -816,8 +817,12 @@ impl VideoPlayer {
                 "hwdec",
                 &video_player_config.mpv_prefs.get_hardware_decoding(),
             );
-            // Bevorzugte Tonspur-Sprache bei direkt abgespielten Dateien.
-            mpv.set_property_string("alang", &video_player_config.preferred_audio_languages);
+            // Ton- und Untertitelwahl nach den Jellyfin-Benutzereinstellungen.
+            for (name, value) in crate::utils::user_config::mpv_track_options(
+                &video_player_config.preferred_audio_languages,
+            ) {
+                mpv.set_property_string(name, &value);
+            }
         });
     }
 

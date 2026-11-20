@@ -61,6 +61,9 @@ pub struct GeneralConfig {
     pub most_recent_login: Option<MostRecentLogin>,
     pub restore_most_recent_login: bool,
     pub use_episode_image: bool,
+    /// Großes Titelbild „Weiterschauen“ auf der Startseite.
+    #[serde(default = "default_true")]
+    pub home_hero: bool,
 }
 
 impl Default for GeneralConfig {
@@ -71,6 +74,7 @@ impl Default for GeneralConfig {
             most_recent_login: Option::default(),
             restore_most_recent_login: true,
             use_episode_image: false,
+            home_hero: true,
         }
     }
 }
@@ -84,4 +88,8 @@ impl GeneralConfig {
         self.theme = theme;
         adw::StyleManager::default().set_color_scheme(self.theme.into());
     }
+}
+
+fn default_true() -> bool {
+    true
 }

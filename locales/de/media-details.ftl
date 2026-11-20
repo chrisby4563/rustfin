@@ -68,3 +68,6 @@ media-details-season-count = { $count ->
 }
 media-details-chapters = Kapitel
 media-details-episode-remaining = noch { $minutes } min
+media-details-media-info-playback = Wiedergabe
+media-details-media-info-playback-direct = Direkt (ohne Umwandeln)
+media-details-media-info-playback-transcode = Server wandelt um (→ 1080p)

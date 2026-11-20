@@ -133,11 +133,20 @@ impl AsyncComponent for MediaDetailsContents {
         root.prepend(header.widget());
         model.header.set(header).unwrap();
 
-        // Film: Kapitel mit Vorschaubildern.
-        if matches!(model.item.type_, Some(BaseItemKind::Movie)) {
+        // Film (Konzept): links Kapitel + Besetzung, rechts Medieninfo-Kasten.
+        let is_movie = matches!(model.item.type_, Some(BaseItemKind::Movie));
+        let movie_left = gtk::Box::new(gtk::Orientation::Vertical, 16);
+        movie_left.set_hexpand(true);
+        if is_movie {
+            let row = gtk::Box::new(gtk::Orientation::Horizontal, 32);
             if let Some(chapters) = chapters_section(&model.api_client, &model.item) {
-                container.append(&chapters);
+                movie_left.append(&chapters);
             }
+            row.append(&movie_left);
+            if let Some(info) = super::media_info::media_info_box(&model.item) {
+                row.append(&info);
+            }
+            container.append(&row);
         }
 
         model.load_seasons(&sender, container);
@@ -148,14 +157,18 @@ impl AsyncComponent for MediaDetailsContents {
             let cast = CastRow::builder()
                 .launch((model.api_client.clone(), people))
                 .detach();
-            let clamp = adw::Clamp::builder()
-                .maximum_size(1200)
-                .margin_start(12)
-                .margin_end(12)
-                .margin_bottom(32)
-                .child(cast.widget())
-                .build();
-            root.append(&clamp);
+            if is_movie {
+                movie_left.append(cast.widget());
+            } else {
+                let clamp = adw::Clamp::builder()
+                    .maximum_size(1200)
+                    .margin_start(12)
+                    .margin_end(12)
+                    .margin_bottom(32)
+                    .child(cast.widget())
+                    .build();
+                root.append(&clamp);
+            }
             model.cast = Some(cast);
         }
 

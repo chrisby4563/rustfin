@@ -69,14 +69,14 @@ impl AsyncComponent for Episodes {
             season,
         } = init;
 
+        // Fehlende Folgen nur, wenn in Jellyfin eingeschaltet.
+        let mut options = GetEpisodesOptionsBuilder::default();
+        options.series_id(series_id).season_id(season.id.unwrap());
+        if !crate::utils::user_config::get_bool("DisplayMissingEpisodes", false) {
+            options.is_missing(false);
+        }
         let episodes = api_client
-            .get_episodes(
-                &GetEpisodesOptionsBuilder::default()
-                    .series_id(series_id)
-                    .season_id(season.id.unwrap())
-                    .build()
-                    .unwrap(),
-            )
+            .get_episodes(&options.build().unwrap())
             .await
             .unwrap();
 

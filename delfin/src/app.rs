@@ -277,6 +277,7 @@ impl Component for App {
                 self.api_client = Some(api_client.clone());
                 crate::syncplay::set_api_client(api_client.clone());
                 crate::utils::delete_item::load_permission(api_client.clone());
+                crate::utils::user_config::load(api_client.clone());
 
                 LIBRARY_BROKER.reset();
                 let library = Library::builder()

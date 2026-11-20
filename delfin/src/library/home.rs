@@ -66,7 +66,9 @@ impl SimpleComponent for Home {
         let sections_container = &widgets.sections_container;
 
         // Konzept: großes Titelbild „Weiterschauen“ ganz oben.
-        sections_container.append(&super::home_sections::hero::hero(init.api_client.clone()));
+        if crate::globals::CONFIG.read().general.home_hero {
+            sections_container.append(&super::home_sections::hero::hero(init.api_client.clone()));
+        }
 
         model.display_sections(
             sections_container,

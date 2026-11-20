@@ -1,5 +1,6 @@
 mod account_preferences;
 mod general_preferences;
+mod jellyfin_preferences;
 mod video_player_preferences;
 
 use adw::prelude::*;
@@ -44,8 +45,14 @@ impl SimpleComponent for Preferences {
             video_player_preferences: VideoPlayerPreferences::builder().launch(()).detach(),
         };
         // Konzept: erste Seite „Server & Konto“ (nur angemeldet sichtbar).
+        let auth_api = init.as_ref().map(|(api_client, _, _)| api_client.clone());
         let account_page = account_preferences::page(init, &root);
         root.add(&account_page);
+        // Wie im Jellyfin-Client: Wiedergabe und Startseite (nur angemeldet).
+        if let Some(api_client) = auth_api {
+            root.add(&jellyfin_preferences::playback_page(api_client.clone(), &root));
+            root.add(&jellyfin_preferences::home_page(api_client, &root));
+        }
         let widgets = view_output!();
         ComponentParts { model, widgets }
     }

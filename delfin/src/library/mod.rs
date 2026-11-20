@@ -492,6 +492,9 @@ impl Library {
                 }
             }
 
+            // Benutzereinstellungen vor dem Aufbau holen (Startseite braucht sie).
+            crate::utils::user_config::refresh(&api_client).await;
+
             match tokio::try_join!(
                 async { api_client.get_user_views(None, None).await },
                 async {
