@@ -16,8 +16,8 @@ use crate::{
 };
 
 use super::{
-    media_details_header::{MediaDetailsHeader, MediaDetailsHeaderInput, MediaDetailsHeaderOutput},
     cast::{cast_people, CastRow},
+    media_details_header::{MediaDetailsHeader, MediaDetailsHeaderInput, MediaDetailsHeaderOutput},
     seasons::{Seasons, SeasonsOutput},
 };
 
@@ -101,10 +101,18 @@ impl AsyncComponent for MediaDetailsContents {
                 None
             });
 
-        let item = api_client
-            .get_item(&media.series_id.or(media.id).unwrap())
-            .await
-            .unwrap();
+        let item = if let Some(item_id) = media.series_id.or(media.id) {
+            match api_client.get_item(&item_id).await {
+                Ok(item) => item,
+                Err(err) => {
+                    tracing::error!("Failed to load media details: {err:#}");
+                    media.clone()
+                }
+            }
+        } else {
+            tracing::error!("Media details received an item without an ID");
+            media.clone()
+        };
 
         let mut model = MediaDetailsContents {
             api_client: api_client.clone(),
@@ -133,7 +141,7 @@ impl AsyncComponent for MediaDetailsContents {
         root.prepend(header.widget());
         model.header.set(header).unwrap();
 
-        // Film (Konzept): links Kapitel + Besetzung, rechts Medieninfo-Kasten.
+        // Movie layout: chapters and cast on the left, media information on the right.
         let is_movie = matches!(model.item.type_, Some(BaseItemKind::Movie));
         let movie_left = gtk::Box::new(gtk::Orientation::Vertical, 16);
         movie_left.set_hexpand(true);
@@ -151,7 +159,7 @@ impl AsyncComponent for MediaDetailsContents {
 
         model.load_seasons(&sender, container);
 
-        // Besetzung unter allem anderen, breiter als der Textblock.
+        // Cast below everything else, wider than the text block.
         let people = cast_people(model.item.people.as_deref().unwrap_or_default());
         if !people.is_empty() {
             let cast = CastRow::builder()
@@ -261,7 +269,11 @@ fn chapters_section(api_client: &Arc<ApiClient>, item: &BaseItemDto) -> Option<g
             .build();
         if let (Some(tag), Ok(url)) = (
             chapter.image_tag.as_ref(),
-            api_client.get_chapter_image_url(&item_id, index, chapter.image_tag.as_deref().unwrap_or_default()),
+            api_client.get_chapter_image_url(
+                &item_id,
+                index,
+                chapter.image_tag.as_deref().unwrap_or_default(),
+            ),
         ) {
             let _ = tag;
             let picture = picture.clone();
@@ -294,9 +306,23 @@ fn chapters_section(api_client: &Arc<ApiClient>, item: &BaseItemDto) -> Option<g
                 .build(),
         );
         let seconds = chapter.start_position_ticks.unwrap_or(0) / 10_000_000;
-        let time = format!("{}:{:02}:{:02}", seconds / 3600, (seconds % 3600) / 60, seconds % 60);
-        card.append(&gtk::Label::builder().label(&time).xalign(0.0).css_classes(["dim-label", "caption"]).build());
-        let button = gtk::Button::builder().child(&card).css_classes(["flat", "chapter-card"]).build();
+        let time = format!(
+            "{}:{:02}:{:02}",
+            seconds / 3600,
+            (seconds % 3600) / 60,
+            seconds % 60
+        );
+        card.append(
+            &gtk::Label::builder()
+                .label(&time)
+                .xalign(0.0)
+                .css_classes(["dim-label", "caption"])
+                .build(),
+        );
+        let button = gtk::Button::builder()
+            .child(&card)
+            .css_classes(["flat", "chapter-card"])
+            .build();
         button.connect_clicked({
             let item = item.clone();
             let ticks = chapter.start_position_ticks.unwrap_or(0);

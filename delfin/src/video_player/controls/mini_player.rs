@@ -34,7 +34,11 @@ impl SimpleComponent for MiniPlayerButton {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let model = MiniPlayerButton {
             active: mini_player::active(),
         };

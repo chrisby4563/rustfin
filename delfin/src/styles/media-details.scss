@@ -2,7 +2,7 @@
 
 .media-details {
   .media-details-header {
-    // Konzept: Hintergrundbild läuft unten in die Fensterfarbe aus.
+    // Design: background image fades into the window color at the bottom.
     .media-details-header-overlay {
       &.gradient {
         background: linear-gradient(

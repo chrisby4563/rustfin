@@ -1,9 +1,9 @@
-//! Überspringbare Abschnitte (Intro, Rückblick, Abspann, Vorschau).
+//! Skippable segments (intro, recap, credits, preview).
 //!
-//! Früher kamen die Zeiten vom IntroSkipper-Plugin unter
-//! `Episode/{id}/IntroTimestamps`. Seit Jellyfin 10.10 liefert der Server sie
-//! selbst als „Media Segments“ (`/MediaSegments/{itemId}`); die alte Adresse
-//! gibt es nicht mehr (404).
+//! The times formerly came from the IntroSkipper plugin at
+//! `Episode/{id}/IntroTimestamps`. Since Jellyfin 10.10, the server provides
+//! them as “Media Segments” (`/MediaSegments/{itemId}`); the old endpoint is
+//! gone (404).
 
 use std::ops::Range;
 
@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::jellyfin_api::api_client::ApiClient;
 
 const TICKS_PER_SECOND: f32 = 10_000_000.0;
-/// So viele Sekunden vor dem Intro läuft der Countdown fürs automatische Überspringen.
+/// Seconds before an intro when the automatic-skip countdown starts.
 const AUTO_SKIP_LEAD_SECONDS: f32 = 3.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,7 +25,7 @@ pub enum SegmentKind {
     Preview,
 }
 
-/// Ein überspringbarer Abschnitt, Zeiten in Sekunden.
+/// A skippable segment; times are in seconds.
 #[derive(Debug, Clone)]
 pub struct SkipSegment {
     pub kind: SegmentKind,
@@ -39,12 +39,12 @@ impl SkipSegment {
         self.start..self.end
     }
 
-    /// Solange ist der Knopf sichtbar (bis kurz vor Ende des Abschnitts).
+    /// The button remains visible until shortly before the segment ends.
     pub fn range_show(&self) -> Range<f32> {
         self.start..(self.end - 1.0).max(self.start)
     }
 
-    /// Countdown vor dem automatischen Überspringen (nur Intro).
+    /// Countdown before automatic skipping (intros only).
     pub fn range_auto_skip_show(&self) -> Range<f32> {
         (self.start - AUTO_SKIP_LEAD_SECONDS).max(0.0)..self.start
     }

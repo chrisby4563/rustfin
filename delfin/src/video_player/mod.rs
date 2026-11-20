@@ -45,9 +45,9 @@ use crate::video_player::controls::VideoPlayerControlsInit;
 use crate::video_player::next_up::{NextUp, NEXT_UP_VISIBILE};
 
 use self::backends::{PlayerState, VideoPlayerBackend};
+use self::controls::chapters::{ChaptersInput, CHAPTERS_BROKER};
 use self::controls::fullscreen::{FullscreenInput, FULLSCREEN_BROKER};
 use self::controls::play_pause::{PlayPauseInput, PLAY_PAUSE_BROKER};
-use self::controls::chapters::{ChaptersInput, CHAPTERS_BROKER};
 use self::controls::scrubber::{ScrubberInput, SCRUBBER_BROKER};
 use self::controls::volume::{VolumeInput, VOLUME_BROKER};
 use self::controls::{VideoPlayerControls, VideoPlayerControlsInput};
@@ -98,7 +98,10 @@ pub enum VideoPlayerInput {
     PlayerInitialized,
     ConfigUpdated(VideoPlayerConfig),
     PlayVideo(Arc<ApiClient>, Box<BaseItemDto>),
-    SetShowControls { show: bool, locked: bool },
+    SetShowControls {
+        show: bool,
+        locked: bool,
+    },
     ToggleControls,
     EndOfStream,
     StopPlayer,
@@ -461,8 +464,8 @@ impl Component for VideoPlayer {
                     (self.syncplay_anchor, &self.player_state)
                 {
                     if crate::syncplay::in_group() {
-                        let elapsed = (crate::syncplay::server_now_ms() - when_ms).max(0) as f64
-                            / 1000.0;
+                        let elapsed =
+                            (crate::syncplay::server_now_ms() - when_ms).max(0) as f64 / 1000.0;
                         let expected = start + elapsed;
                         let actual = self.backend.borrow().position_precise();
                         let drift = actual - expected; // > 0: wir sind voraus
@@ -551,7 +554,9 @@ impl Component for VideoPlayer {
                     relm4::spawn({
                         let api_client = api_client.clone();
                         async move {
-                            api_client.report_playback_started(item_id).await.unwrap();
+                            if let Err(err) = api_client.report_playback_started(item_id).await {
+                                tracing::warn!("Failed to report playback start: {err:#}");
+                            }
                         }
                     });
 
@@ -561,8 +566,12 @@ impl Component for VideoPlayer {
                 }
 
                 // Starts a background task that continuously reports playback progress
-                self.session_playback_reporter
-                    .start(&api_client, &item.id.unwrap(), &self.backend);
+                if let Some(item_id) = item.id {
+                    self.session_playback_reporter
+                        .start(&api_client, &item_id, &self.backend);
+                } else {
+                    tracing::warn!("Cannot report playback for an item without an ID");
+                }
 
                 self.mpris_playback_reporter = Some(MprisPlaybackReporter::new(
                     api_client.clone(),
@@ -625,7 +634,8 @@ impl Component for VideoPlayer {
                 };
 
                 // Nächste Folge, wenn in Jellyfin eingeschaltet (Standard: an).
-                let auto_play = crate::utils::user_config::get_bool("EnableNextEpisodeAutoPlay", true);
+                let auto_play =
+                    crate::utils::user_config::get_bool("EnableNextEpisodeAutoPlay", true);
                 if let Some(next) = self.next.as_ref().filter(|_| auto_play) {
                     APP_BROKER.send(AppInput::PlayVideo(next.clone()));
                     return;
@@ -653,12 +663,19 @@ impl Component for VideoPlayer {
                         // Report end of playback
                         relm4::spawn({
                             let api_client = api_client.clone();
-                            let item_id = media.id.unwrap();
+                            let Some(item_id) = media.id else {
+                                tracing::warn!(
+                                    "Cannot report playback stop for an item without an ID"
+                                );
+                                return;
+                            };
                             async move {
-                                api_client
-                                    .report_playback_stopped(item_id, position)
-                                    .await
-                                    .unwrap();
+                                if let Err(err) =
+                                    api_client.report_playback_stopped(item_id, position).await
+                                {
+                                    tracing::warn!("Failed to report playback stop: {err:#}");
+                                    return;
+                                }
                                 *LIBRARY_REFRESH_QUEUED.write() = true;
                                 *MEDIA_DETAILS_REFRESH_QUEUED.write() = true;
                             }
@@ -838,8 +855,7 @@ impl VideoPlayer {
         self.syncplay_reset_speed();
         // Noch am Laden: mpv nicht anfassen (eine Pause vor dem ersten Bild
         // hält das Laden an). Nur das Ziel merken, Rest beim Ladeende.
-        if matches!(self.player_state, PlayerState::Loading) && self.syncplay_ready_at.is_some()
-        {
+        if matches!(self.player_state, PlayerState::Loading) && self.syncplay_ready_at.is_some() {
             info!("SyncPlay apply {:?} while loading → deferred", command.kind);
             match command.kind {
                 CommandKind::Unpause => {
@@ -859,8 +875,8 @@ impl VideoPlayer {
         match command.kind {
             CommandKind::Unpause => {
                 // Verspätet angekommen: um die verstrichene Zeit weiter vorn starten.
-                let late = (crate::syncplay::server_now_ms() - command.when_ms).max(0) as f64
-                    / 1000.0;
+                let late =
+                    (crate::syncplay::server_now_ms() - command.when_ms).max(0) as f64 / 1000.0;
                 let target = command.position_seconds + late;
                 if (position - target).abs() >= 0.3 {
                     self.backend.borrow().seek_to_precise(target);
@@ -966,8 +982,7 @@ impl VideoPlayer {
                     self.backend.borrow().pause();
                     self.backend.borrow().seek_to_precise(start);
                     let started = chrono::Utc::now().timestamp_millis();
-                    VIDEO_PLAYER_BROKER
-                        .send(VideoPlayerInput::SyncPlayReadyPoll(start, started));
+                    VIDEO_PLAYER_BROKER.send(VideoPlayerInput::SyncPlayReadyPoll(start, started));
                 }
             }
         }

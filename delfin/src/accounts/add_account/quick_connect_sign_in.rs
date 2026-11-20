@@ -200,18 +200,25 @@ async fn try_quick_connect(
     let client = QuickConnectClient::new(url, device_id)?;
 
     let auth_info = client.init().await?;
-    sender.input(QuickConnectSignInInput::SetQuickConnectCode(
-        auth_info.code.unwrap(),
-    ));
+    let code = auth_info
+        .code
+        .ok_or_else(|| anyhow::anyhow!("Quick Connect did not return a code"))?;
+    sender.input(QuickConnectSignInInput::SetQuickConnectCode(code));
+
+    let secret = auth_info
+        .secret
+        .ok_or_else(|| anyhow::anyhow!("Quick Connect did not return a secret"))?;
 
     let secret = loop {
         sender.input(QuickConnectSignInInput::SetWaiting);
         tokio::time::sleep(Duration::from_secs(3)).await;
 
         sender.input(QuickConnectSignInInput::SetLoading);
-        let quick_connect_res = client.connect(auth_info.secret.as_ref().unwrap()).await?;
-        if quick_connect_res.authenticated.unwrap() {
-            break quick_connect_res.secret.unwrap();
+        let quick_connect_res = client.connect(&secret).await?;
+        if quick_connect_res.authenticated.unwrap_or(false) {
+            break quick_connect_res
+                .secret
+                .ok_or_else(|| anyhow::anyhow!("Quick Connect completed without a secret"))?;
         }
     };
 

@@ -1,5 +1,5 @@
-# Eigenes Paket für den Delfin-Fork (Branch chrisby).
-# Baut den zuletzt committeten Stand aus dem lokalen Repo:
+# Custom package for the Delfin fork (chrisby branch).
+# Builds the latest committed state from the local repository:
 #   cd ~/projects/delfin/packaging/arch && makepkg -si
 pkgname=delfin-chrisby
 pkgver=0.4.8.r475.g3da69b9
@@ -23,15 +23,15 @@ pkgver() {
 
 prepare() {
   cd delfin
-  # Rust-Abhängigkeiten vorab laden (Bau selbst dann ohne Netz möglich).
+  # Fetch Rust dependencies in advance (so the build can run without a network).
   export RUSTUP_TOOLCHAIN=stable
   cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
 }
 
 build() {
   export RUSTUP_TOOLCHAIN=stable
-  # Bauordner INNERHALB des Klons: cargo sucht Cargo.toml von dort aufwärts
-  # und würde sonst den Arbeitsordner ~/projects/delfin übersetzen.
+  # Build directory INSIDE the clone: cargo searches upward for Cargo.toml,
+  # and would otherwise build the ~/projects/delfin working directory.
   cd delfin
   arch-meson . _pkgbuild -Dprofile=release
   meson compile -C _pkgbuild

@@ -166,18 +166,26 @@ impl Migrate<Config> for ConfigV1 {
             .servers
             .into_iter()
             .map(|server| Server {
-                id: Uuid::parse_str(&server.id).expect("Failed to migrate server ID"),
+                id: Uuid::parse_str(&server.id).unwrap_or_else(|err| {
+                    tracing::warn!("Failed to migrate server ID: {err}");
+                    Uuid::new_v4()
+                }),
                 url: server.url,
                 name: server.name,
                 accounts: server
                     .accounts
                     .into_iter()
                     .map(|account| Account {
-                        id: Uuid::parse_str(&account.id).expect("Failed to migrate account ID"),
+                        id: Uuid::parse_str(&account.id).unwrap_or_else(|err| {
+                            tracing::warn!("Failed to migrate account ID: {err}");
+                            Uuid::new_v4()
+                        }),
                         username: account.username,
                         access_token: account.access_token,
-                        device_id: Uuid::parse_str(&self.device_id)
-                            .expect("Failed to migrate device ID"),
+                        device_id: Uuid::parse_str(&self.device_id).unwrap_or_else(|err| {
+                            tracing::warn!("Failed to migrate device ID: {err}");
+                            Uuid::new_v4()
+                        }),
                     })
                     .collect(),
             })

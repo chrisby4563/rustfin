@@ -141,7 +141,9 @@ impl Component for ServerList {
                 self.servers.guard().push_back(server.clone());
                 let mut config = CONFIG.write();
                 config.servers.push(server);
-                config.save().unwrap();
+                if let Err(err) = config.save() {
+                    tracing::error!("Failed to save server configuration: {err}");
+                }
             }
             ServerListInput::ServerSelected(index) => {
                 let index: usize = index.current_index();

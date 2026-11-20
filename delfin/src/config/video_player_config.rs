@@ -38,17 +38,17 @@ pub struct VideoPlayerConfig {
 
     pub mpv_prefs: MpvPrefs,
 
-    /// Was bei Intro/Rückblick/Abspann/Vorschau passiert.
+    /// What happens for intros, recaps, credits, and previews.
     pub segment_actions: SegmentActions,
-    /// Qualität beim Start von Delfin (im Player änderbar).
+    /// Quality when Delfin starts (changeable in the player).
     pub default_quality: crate::jellyfin_api::api::item::StreamQuality,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone, Copy)]
 pub enum SegmentAction {
-    /// Automatisch überspringen (mit kurzem Countdown).
+    /// Skip automatically (with a short countdown).
     Skip,
-    /// Knopf zum Überspringen zeigen.
+    /// Show a skip button.
     #[default]
     Ask,
     /// Nichts tun.
@@ -184,7 +184,7 @@ impl DurationDisplay {
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, glib::Variant)]
 pub enum Deinterlace {
-    /// mpv schaltet nur bei Halbbild-Material (z. B. 1080i-Blu-rays) ein.
+    /// mpv enables it only for interlaced material (for example, 1080i Blu-rays).
     #[default]
     Auto,
     On,

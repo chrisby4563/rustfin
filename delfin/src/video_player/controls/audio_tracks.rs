@@ -115,7 +115,8 @@ impl Component for AudioTracks {
                             return;
                         }
                         if let (true, Some(index)) = (changed, value) {
-                            VIDEO_PLAYER_BROKER.send(VideoPlayerInput::SwitchServerAudioTrack(index));
+                            VIDEO_PLAYER_BROKER
+                                .send(VideoPlayerInput::SwitchServerAudioTrack(index));
                         }
                     } else {
                         video_player
@@ -196,7 +197,11 @@ impl Component for AudioTracks {
                             Ok(info) => info,
                             Err(err) => {
                                 warn!("Error getting audio streams: {err}");
-                                return AudioTracksCommandOutput::ServerTracksLoaded(vec![], None, false);
+                                return AudioTracksCommandOutput::ServerTracksLoaded(
+                                    vec![],
+                                    None,
+                                    false,
+                                );
                             }
                         };
                         let source = match &settings.media_source_id {
@@ -215,14 +220,18 @@ impl Component for AudioTracks {
                                 .into_iter()
                                 .filter(|stream| stream.type_ == Some(MediaStreamType::Audio))
                                 .filter_map(|stream| {
-                                    let name = stream
-                                        .display_title
-                                        .or(stream.language)
-                                        .unwrap_or_else(|| format!("#{}", stream.index.unwrap_or(0)));
+                                    let name =
+                                        stream.display_title.or(stream.language).unwrap_or_else(
+                                            || format!("#{}", stream.index.unwrap_or(0)),
+                                        );
                                     Some((stream.index?, name))
                                 })
                                 .collect();
-                            return AudioTracksCommandOutput::ServerTracksLoaded(tracks, Some(chosen), false);
+                            return AudioTracksCommandOutput::ServerTracksLoaded(
+                                tracks,
+                                Some(chosen),
+                                false,
+                            );
                         }
                         let audio_streams: Vec<_> = source
                             .and_then(|s| s.media_streams)

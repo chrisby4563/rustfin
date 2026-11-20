@@ -66,7 +66,7 @@
   }
 }
 
-// Gesehen-Anzeige oben rechts auf der Kachel.
+// Watched indicator at the top right of the tile.
 .media-tile .watched-badge {
   background: "@accent_bg_color";
   color: "@accent_fg_color";
@@ -83,7 +83,7 @@
   }
 }
 
-// Konzept: Kachel hebt sich beim Überfahren leicht an.
+// Design: tile rises slightly on hover.
 .media-tile {
   overlay {
     transition: transform 180ms ease-out;

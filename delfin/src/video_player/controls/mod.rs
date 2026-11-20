@@ -1,11 +1,11 @@
 mod audio_tracks;
 pub(crate) mod chapters;
-pub(crate) mod quality;
-mod mini_player;
 pub(super) mod fullscreen;
+mod mini_player;
 pub(super) mod next_prev_episode;
 pub(super) mod play_pause;
 pub(super) mod playback_speed;
+pub(crate) mod quality;
 pub(super) mod scrubber;
 pub(super) mod skip_forwards_backwards;
 pub(super) mod subtitles;
@@ -48,12 +48,12 @@ use video_player_menu::{VideoPlayerMenu, VIDEO_PLAYER_MENU_BROKER};
 use self::{
     audio_tracks::{AudioTracks, AudioTracksInput},
     chapters::{Chapters, CHAPTERS_BROKER},
-    mini_player::MiniPlayerButton,
-    quality::{Quality, QualityInput},
     fullscreen::Fullscreen,
+    mini_player::MiniPlayerButton,
     next_prev_episode::{NextPrevEpisode, NextPrevEpisodeInput},
     play_pause::PlayPause,
     playback_speed::PlaybackSpeed,
+    quality::{Quality, QualityInput},
     scrubber::Scrubber,
     skip_forwards_backwards::SkipForwardsBackwards,
     subtitles::{Subtitles, SubtitlesInput},

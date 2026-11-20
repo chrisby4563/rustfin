@@ -69,16 +69,30 @@ impl AsyncComponent for Episodes {
             season,
         } = init;
 
-        // Fehlende Folgen nur, wenn in Jellyfin eingeschaltet.
-        let mut options = GetEpisodesOptionsBuilder::default();
-        options.series_id(series_id).season_id(season.id.unwrap());
-        if !crate::utils::user_config::get_bool("DisplayMissingEpisodes", false) {
-            options.is_missing(false);
-        }
-        let episodes = api_client
-            .get_episodes(&options.build().unwrap())
-            .await
-            .unwrap();
+        // Include missing episodes only when enabled in Jellyfin.
+        let episodes = if let Some(season_id) = season.id {
+            let mut options = GetEpisodesOptionsBuilder::default();
+            options.series_id(series_id).season_id(season_id);
+            if !crate::utils::user_config::get_bool("DisplayMissingEpisodes", false) {
+                options.is_missing(false);
+            }
+            match options.build() {
+                Ok(options) => match api_client.get_episodes(&options).await {
+                    Ok(episodes) => episodes,
+                    Err(err) => {
+                        tracing::error!("Failed to load episodes: {err:#}");
+                        vec![]
+                    }
+                },
+                Err(err) => {
+                    tracing::error!("Failed to build episode query: {err}");
+                    vec![]
+                }
+            }
+        } else {
+            tracing::error!("Season without an ID received while loading episodes");
+            vec![]
+        };
 
         let mut model = Episodes {
             episodes,

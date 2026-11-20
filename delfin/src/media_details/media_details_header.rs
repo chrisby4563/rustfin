@@ -55,6 +55,7 @@ pub enum MediaDetailsHeaderOutput {
 pub enum MediaDetailsHeaderCommandOutput {
     PlayNextLoaded(Box<(String, Option<BaseItemDto>)>),
     BackdropLoaded(VecDeque<u8>),
+    BackdropLoadFailed(String),
     PosterLoaded(VecDeque<u8>),
 }
 
@@ -276,16 +277,14 @@ impl AsyncComponent for MediaDetailsHeader {
         } = init;
 
         if let Ok(img_url) = api_client.get_backdrop_url(&item) {
-            sender.oneshot_command(async {
-                let img_bytes: VecDeque<u8> = reqwest::get(img_url)
-                    .await
-                    .expect("Error getting media tile image: {img_url}")
-                    .bytes()
-                    .await
-                    .expect("Error getting media tile image bytes: {img_url}")
-                    .into_iter()
-                    .collect();
-                MediaDetailsHeaderCommandOutput::BackdropLoaded(img_bytes)
+            sender.oneshot_command(async move {
+                match reqwest::get(&img_url).await {
+                    Ok(response) => match response.bytes().await {
+                        Ok(bytes) => MediaDetailsHeaderCommandOutput::BackdropLoaded(bytes.into_iter().collect()),
+                        Err(err) => MediaDetailsHeaderCommandOutput::BackdropLoadFailed(err.to_string()),
+                    },
+                    Err(err) => MediaDetailsHeaderCommandOutput::BackdropLoadFailed(err.to_string()),
+                }
             });
         }
 
@@ -476,6 +475,9 @@ impl AsyncComponent for MediaDetailsHeader {
                     }
                 };
                 self.backdrop = Some(Texture::for_pixbuf(&pixbuf));
+            }
+            MediaDetailsHeaderCommandOutput::BackdropLoadFailed(err) => {
+                tracing::warn!("Failed to load media backdrop: {err}");
             }
         }
     }

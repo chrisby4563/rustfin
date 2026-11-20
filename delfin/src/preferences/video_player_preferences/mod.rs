@@ -297,7 +297,9 @@ impl Component for VideoPlayerPreferences {
             }
         };
 
-        config.save().expect("Error saving config");
+        if let Err(err) = config.save() {
+            tracing::error!("Failed to save configuration: {err}");
+        }
 
         self.update_view(widgets, sender);
     }

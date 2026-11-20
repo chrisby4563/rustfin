@@ -72,7 +72,10 @@ fn get_config_file(create_dir: bool) -> Option<PathBuf> {
     let dir = config_dir.join("delfin");
 
     if create_dir {
-        fs::create_dir_all(&dir).expect("Error creating config directory");
+        if let Err(err) = fs::create_dir_all(&dir) {
+            tracing::error!("Failed to create config directory {}: {err}", dir.display());
+            return None;
+        }
     }
 
     let config_file = dir.join("config.toml");
@@ -86,10 +89,17 @@ fn get_config_file_exists() -> Option<PathBuf> {
         None => return None,
     };
 
-    if !config_file
-        .try_exists()
-        .expect("Error checking if config file exists.")
-    {
+    let exists = match config_file.try_exists() {
+        Ok(exists) => exists,
+        Err(err) => {
+            tracing::error!(
+                "Failed to check config file {}: {err}",
+                config_file.display()
+            );
+            return None;
+        }
+    };
+    if !exists {
         return None;
     }
 

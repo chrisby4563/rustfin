@@ -61,7 +61,11 @@ impl Component for Quality {
         }
     }
 
-    fn init(_: Self::Init, root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init(
+        _: Self::Init,
+        root: Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
         let mut model = Quality {
             buttons: vec![],
             syncing: false,
@@ -138,8 +142,16 @@ impl Component for Quality {
 pub(crate) fn quality_label(quality: StreamQuality, auto_transcoded: Option<bool>) -> String {
     match quality {
         StreamQuality::Auto => match auto_transcoded {
-            Some(true) => format!("{} ({})", tr!("vp-quality-auto"), tr!("vp-quality-auto-server")),
-            Some(false) => format!("{} ({})", tr!("vp-quality-auto"), tr!("vp-quality-auto-direct")),
+            Some(true) => format!(
+                "{} ({})",
+                tr!("vp-quality-auto"),
+                tr!("vp-quality-auto-server")
+            ),
+            Some(false) => format!(
+                "{} ({})",
+                tr!("vp-quality-auto"),
+                tr!("vp-quality-auto-direct")
+            ),
             None => tr!("vp-quality-auto").to_string(),
         },
         StreamQuality::Original => tr!("vp-quality-original").to_string(),
