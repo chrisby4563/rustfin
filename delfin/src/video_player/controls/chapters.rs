@@ -192,7 +192,9 @@ impl Component for Chapters {
             }
             ChaptersInput::Activate(index) => {
                 if let Some(start) = self.starts.get(index) {
-                    self.video_player.borrow().seek_to(*start);
+                    if !crate::syncplay::intercept_seek(*start) {
+                        self.video_player.borrow().seek_to(*start);
+                    }
                 }
                 widgets.popover.popdown();
             }

@@ -22,3 +22,10 @@ scrollbar:not(.overlay-indicator) slider {
   min-width: 2px;
   min-height: 2px;
 }
+
+// SyncPlay-Knopf leuchtet, solange man in einer Gruppe ist.
+.syncplay-active {
+  background: "@accent_bg_color";
+  color: "@accent_fg_color";
+  font-weight: bold;
+}

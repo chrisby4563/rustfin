@@ -27,6 +27,12 @@ pub enum PlayPauseInput {
     TogglePlaying,
     SetLoading,
     SetPlaying(bool),
+    /// Vom Nutzer (z. B. Medientasten) – geht bei SyncPlay an den Server.
+    UserSetPlaying(bool),
+    /// Player meldet seinen Zustand – nur Anzeige, kein Befehl zurück.
+    /// (Früher ging das als `SetPlaying` zurück an den Player und
+    /// überschrieb dabei z. B. eine gerade gesetzte SyncPlay-Pause.)
+    StateChanged(bool),
     LeftClick,
     LeftClickTimeout,
 }
@@ -82,6 +88,9 @@ impl SimpleComponent for PlayPause {
     fn update(&mut self, message: Self::Input, sender: ComponentSender<Self>) {
         match message {
             PlayPauseInput::TogglePlaying => {
+                if crate::syncplay::intercept_play(!self.playing) {
+                    return;
+                }
                 if self.playing {
                     self.video_player.borrow().pause();
                     self.playing = false;
@@ -89,6 +98,16 @@ impl SimpleComponent for PlayPause {
                     self.video_player.borrow().play();
                     self.playing = true;
                 }
+            }
+            PlayPauseInput::UserSetPlaying(playing) => {
+                if crate::syncplay::intercept_play(playing) {
+                    return;
+                }
+                sender.input(PlayPauseInput::SetPlaying(playing));
+            }
+            PlayPauseInput::StateChanged(playing) => {
+                self.playing = playing;
+                self.loading = false;
             }
             PlayPauseInput::SetLoading => {
                 self.loading = true;

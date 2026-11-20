@@ -302,6 +302,13 @@ impl Component for Library {
         });
 
         let widgets = view_output!();
+
+        // „Gemeinsam schauen“ in der Kopfleiste.
+        let mut syncplay = crate::syncplay::ui::SyncPlayButton::builder()
+            .launch(())
+            .detach();
+        widgets.header_bar.pack_end(syncplay.widget());
+        syncplay.detach_runtime();
         let view_stack = &widgets.view_stack;
 
         view_stack.connect_visible_child_name_notify({

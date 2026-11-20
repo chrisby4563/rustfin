@@ -173,7 +173,9 @@ impl AsyncComponent for SkipIntro {
                     {
                         if intro.range().contains(&position) {
                             self.already_skipped = true;
-                            self.video_player.borrow().seek_to(intro.end as usize);
+                            if !crate::syncplay::intercept_seek(intro.end as usize) {
+                                self.video_player.borrow().seek_to(intro.end as usize);
+                            }
                             self.state = State::Hidden;
                             return;
                         }
@@ -201,7 +203,9 @@ impl AsyncComponent for SkipIntro {
                     if segment.kind == SegmentKind::Intro {
                         self.already_skipped = true;
                     }
-                    self.video_player.borrow().seek_to(segment.end as usize);
+                    if !crate::syncplay::intercept_seek(segment.end as usize) {
+                        self.video_player.borrow().seek_to(segment.end as usize);
+                    }
                     self.state = State::Hidden;
                 }
             }

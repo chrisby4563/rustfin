@@ -278,6 +278,13 @@ impl SimpleComponent for VideoPlayerControls {
         second_row.append(volume.widget());
         model.volume = Some(volume);
 
+        let mut syncplay = crate::syncplay::ui::SyncPlayButton::builder()
+            .launch(())
+            .detach();
+        syncplay.widget().set_direction(gtk::ArrowType::Up);
+        second_row.append(syncplay.widget());
+        syncplay.detach_runtime();
+
         let mini_player = MiniPlayerButton::builder().launch(()).detach();
         second_row.append(mini_player.widget());
         let _ = model.mini_player.set(mini_player);

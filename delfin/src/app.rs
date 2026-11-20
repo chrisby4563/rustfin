@@ -275,6 +275,7 @@ impl Component for App {
                 );
                 let api_client = Arc::new(api_client);
                 self.api_client = Some(api_client.clone());
+                crate::syncplay::set_api_client(api_client.clone());
 
                 LIBRARY_BROKER.reset();
                 let library = Library::builder()
@@ -321,6 +322,15 @@ impl Component for App {
                 }
             }
             AppInput::PlayVideo(item) => {
+                // In einer SyncPlay-Gruppe startet der Server den Titel für alle.
+                let start_ticks = item
+                    .user_data
+                    .as_ref()
+                    .and_then(|d| d.playback_position_ticks)
+                    .unwrap_or_default();
+                if crate::syncplay::intercept_play_video(item.id, start_ticks) {
+                    return;
+                }
                 if let Some((last_id, at)) = self.last_play {
                     if last_id == item.id && at.elapsed() < std::time::Duration::from_millis(1500) {
                         return;

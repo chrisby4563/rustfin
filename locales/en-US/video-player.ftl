@@ -88,3 +88,29 @@ vp-quality-auto-direct = direct
 vp-quality-original = Original (direct play)
 vp-mini-player-enter = Mini player (small, always on top)
 vp-mini-player-leave = Back to normal window
+syncplay-tooltip = Watch together
+syncplay-error = SyncPlay error
+syncplay-in-group = In group “{ $name }”
+syncplay-hint = Play, pause and seeking are shared with everyone in the group.
+syncplay-leave = Leave group
+syncplay-no-groups = No groups yet.
+syncplay-participants = { $count ->
+    [one] 1 person
+   *[other] { $count } people
+}
+syncplay-default-name = Delfin
+syncplay-create = Create group
+syncplay-joined = Joined group “{ $name }”
+syncplay-user-joined = { $name } joined
+syncplay-user-left = { $name } left
+syncplay-left = Left the group
+syncplay-disconnected = SyncPlay connection lost
+syncplay-group-missing = Group no longer exists
+syncplay-access-denied = Someone in the group cannot access this title
+syncplay-short = Together
+syncplay-state-waiting = Waiting for everyone in the group…
+syncplay-state-waiting-short = waiting…
+syncplay-state-playing = playing
+syncplay-state-playing-toast = Playing together
+syncplay-state-paused = paused
+syncplay-state-paused-toast = Paused for the group

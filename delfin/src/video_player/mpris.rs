@@ -219,10 +219,10 @@ fn attach_media_control_events(controls: &mut MediaControls) {
         .attach(|event: MediaControlEvent| {
             match event {
                 MediaControlEvent::Play => {
-                    PLAY_PAUSE_BROKER.send(PlayPauseInput::SetPlaying(true));
+                    PLAY_PAUSE_BROKER.send(PlayPauseInput::UserSetPlaying(true));
                 }
                 MediaControlEvent::Pause => {
-                    PLAY_PAUSE_BROKER.send(PlayPauseInput::SetPlaying(false));
+                    PLAY_PAUSE_BROKER.send(PlayPauseInput::UserSetPlaying(false));
                 }
                 MediaControlEvent::Toggle => {
                     PLAY_PAUSE_BROKER.send(PlayPauseInput::TogglePlaying);

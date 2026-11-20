@@ -10,5 +10,6 @@ pub mod media_details;
 pub mod meson_config;
 pub mod preferences;
 pub mod servers;
+pub mod syncplay;
 pub mod utils;
 pub mod video_player;

@@ -116,12 +116,18 @@ impl SimpleComponent for SkipForwardsBackwards {
                     ),
                 };
 
+                if crate::syncplay::intercept_seek(seek_to) {
+                    return;
+                }
                 self.player.borrow().seek_by(skip_amount);
 
                 SCRUBBER_BROKER.send(ScrubberInput::SetPosition(seek_to));
             }
             SkipForwardsBackwardsInput::SkipTo(position) => {
                 let position = position.as_secs() as usize;
+                if crate::syncplay::intercept_seek(position) {
+                    return;
+                }
                 self.player.borrow().seek_to(position);
                 SCRUBBER_BROKER.send(ScrubberInput::SetPosition(position));
             }

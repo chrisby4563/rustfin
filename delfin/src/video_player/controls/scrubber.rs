@@ -265,7 +265,7 @@ impl Component for Scrubber {
             ScrubberInput::SetScrubbing(scrubbing) => {
                 self.scrubbing = scrubbing;
 
-                if !scrubbing {
+                if !scrubbing && !crate::syncplay::intercept_seek(self.position) {
                     self.video_player.borrow().seek_to(self.position);
                 }
             }
