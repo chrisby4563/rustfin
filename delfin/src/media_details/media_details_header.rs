@@ -8,6 +8,7 @@ use relm4::{
 };
 
 use crate::{
+    globals::SELECTED_VERSIONS,
     app::{AppInput, APP_BROKER},
     jellyfin_api::api_client::ApiClient,
     library::LIBRARY_REFRESH_QUEUED,
@@ -290,6 +291,35 @@ impl AsyncComponent for MediaDetailsHeader {
             .unwrap_or(tr!("media-details-unnamed-item").to_string());
 
         let widgets = view_output!();
+
+        // Mehrere Versionen (z. B. 4K und 1080p): Auswahl neben dem Abspielknopf.
+        if let (Some(item_id), Some(sources)) = (model.item.id, model.item.media_sources.as_ref()) {
+            if sources.len() > 1 {
+                let ids: Vec<Option<String>> = sources.iter().map(|s| s.id.clone()).collect();
+                let names: Vec<String> = sources
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| s.name.clone().unwrap_or_else(|| format!("Version {}", i + 1)))
+                    .collect();
+                let names: Vec<&str> = names.iter().map(String::as_str).collect();
+                let dropdown = gtk::DropDown::from_strings(&names);
+                dropdown.set_valign(gtk::Align::Center);
+                dropdown.set_tooltip_text(Some(tr!("media-details-version")));
+                if let Some(chosen) = SELECTED_VERSIONS.read().get(&item_id) {
+                    if let Some(pos) = ids.iter().position(|id| id.as_ref() == Some(chosen)) {
+                        dropdown.set_selected(pos as u32);
+                    }
+                }
+                dropdown.connect_selected_notify(move |dropdown| {
+                    if let Some(Some(id)) = ids.get(dropdown.selected() as usize) {
+                        SELECTED_VERSIONS.write().insert(item_id, id.clone());
+                    }
+                });
+                if let Some(parent) = widgets.btn_play_next.parent().and_downcast::<gtk::Box>() {
+                    parent.append(&dropdown);
+                }
+            }
+        }
 
         AsyncComponentParts { model, widgets }
     }

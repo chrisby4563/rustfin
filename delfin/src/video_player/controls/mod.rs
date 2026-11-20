@@ -1,5 +1,6 @@
 mod audio_tracks;
 pub(crate) mod chapters;
+mod quality;
 pub(super) mod fullscreen;
 pub(super) mod next_prev_episode;
 pub(super) mod play_pause;
@@ -46,6 +47,7 @@ use video_player_menu::{VideoPlayerMenu, VIDEO_PLAYER_MENU_BROKER};
 use self::{
     audio_tracks::{AudioTracks, AudioTracksInput},
     chapters::{Chapters, CHAPTERS_BROKER},
+    quality::{Quality, QualityInput},
     fullscreen::Fullscreen,
     next_prev_episode::{NextPrevEpisode, NextPrevEpisodeInput},
     play_pause::PlayPause,
@@ -72,6 +74,7 @@ pub struct VideoPlayerControls {
     subtitles: OnceCell<Controller<Subtitles>>,
     audio_tracks: OnceCell<Controller<AudioTracks>>,
     chapters: OnceCell<Controller<Chapters>>,
+    quality: OnceCell<Controller<Quality>>,
     fullscreen: Option<Controller<Fullscreen>>,
     playback_speed: OnceCell<Controller<PlaybackSpeed>>,
     menu: OnceCell<Controller<VideoPlayerMenu>>,
@@ -155,6 +158,7 @@ impl SimpleComponent for VideoPlayerControls {
             subtitles: OnceCell::new(),
             audio_tracks: OnceCell::new(),
             chapters: OnceCell::new(),
+            quality: OnceCell::new(),
             fullscreen: None,
             playback_speed: OnceCell::new(),
             menu: OnceCell::new(),
@@ -244,6 +248,10 @@ impl SimpleComponent for VideoPlayerControls {
         second_row.append(chapters.widget());
         let _ = model.chapters.set(chapters);
 
+        let quality = Quality::builder().launch(()).detach();
+        second_row.append(quality.widget());
+        let _ = model.quality.set(quality);
+
         let playback_speed = PlaybackSpeed::builder()
             .launch_with_broker(player.clone(), &PLAYBACK_SPEED_BROKER.read())
             .detach();
@@ -289,6 +297,9 @@ impl SimpleComponent for VideoPlayerControls {
                 self.show_controls = show_controls;
             }
             VideoPlayerControlsInput::SetPlaying { api_client, item } => {
+                if let Some(quality) = self.quality.get() {
+                    quality.emit(QualityInput::SetItem(item.clone()));
+                }
                 if let Some(audio_tracks) = self.audio_tracks.get() {
                     audio_tracks.emit(AudioTracksInput::Reset {
                         api_client: api_client.clone(),

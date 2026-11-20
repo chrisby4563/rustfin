@@ -187,7 +187,8 @@ impl Component for AudioTracks {
             AudioTracksInput::Reset { api_client, item } => {
                 self.audio_tracks_available = false;
                 self.menu.remove_all();
-                let server_mode = ApiClient::is_server_transcoded(&item);
+                let settings = crate::globals::STREAM_SETTINGS.read().clone();
+                let server_mode = ApiClient::is_transcoded(&item, &settings);
                 self.server_mode.set(server_mode);
                 if let (true, Some(item_id)) = (server_mode, item.id) {
                     sender.oneshot_command(async move {
@@ -198,8 +199,31 @@ impl Component for AudioTracks {
                                 return AudioTracksCommandOutput::ServerTracksLoaded(vec![], None, false);
                             }
                         };
-                        let source = info.media_sources.into_iter().next();
+                        let source = match &settings.media_source_id {
+                            Some(id) => info
+                                .media_sources
+                                .into_iter()
+                                .find(|s| s.id.as_ref() == Some(id)),
+                            None => info.media_sources.into_iter().next(),
+                        };
                         let default = source.as_ref().and_then(|s| s.default_audio_stream_index);
+                        // Schon gewählte Spur (nach Qualitätswechsel): beibehalten.
+                        if let Some(chosen) = settings.audio_stream_index {
+                            let tracks = source
+                                .and_then(|s| s.media_streams)
+                                .unwrap_or_default()
+                                .into_iter()
+                                .filter(|stream| stream.type_ == Some(MediaStreamType::Audio))
+                                .filter_map(|stream| {
+                                    let name = stream
+                                        .display_title
+                                        .or(stream.language)
+                                        .unwrap_or_else(|| format!("#{}", stream.index.unwrap_or(0)));
+                                    Some((stream.index?, name))
+                                })
+                                .collect();
+                            return AudioTracksCommandOutput::ServerTracksLoaded(tracks, Some(chosen), false);
+                        }
                         let audio_streams: Vec<_> = source
                             .and_then(|s| s.media_streams)
                             .unwrap_or_default()

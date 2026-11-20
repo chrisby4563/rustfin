@@ -43,3 +43,4 @@ media-details-toggle-watched-error =
 media-details-cast = Besetzung & Stab
 media-details-cast-director = Regie
 media-details-cast-writer = Drehbuch
+media-details-version = Version

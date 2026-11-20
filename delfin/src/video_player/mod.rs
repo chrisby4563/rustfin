@@ -27,7 +27,8 @@ use relm4::{prelude::*, MessageBroker};
 use tracing::{debug, info};
 
 use crate::app::{AppInput, APP_BROKER};
-use crate::globals::CONFIG;
+use crate::globals::{CONFIG, SELECTED_VERSIONS, STREAM_SETTINGS};
+use crate::jellyfin_api::api::item::StreamQuality;
 use crate::jellyfin_api::api::shows::GetEpisodesOptionsBuilder;
 use crate::jellyfin_api::api_client::ApiClient;
 use crate::library::LIBRARY_REFRESH_QUEUED;
@@ -104,6 +105,8 @@ pub enum VideoPlayerInput {
     /// Tonspur bei vom Server umgewandelten Streams wechseln (Index aus den
     /// MediaStreams des Servers): Stream neu anfordern, an gleicher Stelle weiter.
     SwitchServerAudioTrack(i32),
+    /// Qualität wechseln: Stream neu anfordern, an gleicher Stelle weiter.
+    SetQuality(StreamQuality),
 }
 
 #[derive(Debug)]
@@ -379,14 +382,17 @@ impl Component for VideoPlayer {
                 self.configure_player(&video_player_config);
             }
             VideoPlayerInput::SwitchServerAudioTrack(index) => {
-                if let (Some(api_client), Some(media)) = (&self.api_client, &self.media) {
-                    let position = self.backend.borrow().position();
-                    let url = api_client.get_stream_url_with_audio(media, Some(index));
-                    info!("Switching server audio track to stream index {index} at {position}s");
-                    self.pending_seek = Some(position);
-                    self.set_player_state(PlayerState::Loading);
-                    self.backend.borrow_mut().play_uri(&url);
-                    VIDEO_PLAYER_MENU_BROKER.send(VideoPlayerMenuInput::SetStreamURL(url));
+                info!("Switching server audio track to stream index {index}");
+                STREAM_SETTINGS.write().audio_stream_index = Some(index);
+                self.reload_stream(false);
+            }
+            VideoPlayerInput::SetQuality(quality) => {
+                if STREAM_SETTINGS.read().quality != quality {
+                    info!("Switching quality to {quality:?}");
+                    STREAM_SETTINGS.write().quality = quality;
+                    // Tonspuren/Untertitel neu einlesen: direkt ↔ umgewandelt
+                    // ändert, wie Spuren gewechselt werden.
+                    self.reload_stream(true);
                 }
             }
             VideoPlayerInput::PlayVideo(api_client, item) => {
@@ -397,7 +403,16 @@ impl Component for VideoPlayer {
                 self.hiding.store(false, atomic::Ordering::Relaxed);
 
                 self.media = Some(*item.clone());
-                let url = api_client.get_stream_url_for(&item);
+                {
+                    // Qualität bleibt für die Sitzung, Version und Tonspur
+                    // gelten je Titel.
+                    let mut settings = STREAM_SETTINGS.write();
+                    settings.audio_stream_index = None;
+                    settings.media_source_id = item
+                        .id
+                        .and_then(|id| SELECTED_VERSIONS.read().get(&id).cloned());
+                }
+                let url = api_client.stream_url(&item, &STREAM_SETTINGS.read());
                 info!(
                     "Playing video from URL: {}",
                     url.split("&ApiKey=").next().unwrap_or_default()
@@ -690,6 +705,30 @@ impl VideoPlayer {
             // Bevorzugte Tonspur-Sprache bei direkt abgespielten Dateien.
             mpv.set_property_string("alang", &video_player_config.preferred_audio_languages);
         });
+    }
+
+    /// Stream mit den aktuellen `STREAM_SETTINGS` neu anfordern und an der
+    /// gleichen Stelle weiterspielen.
+    fn reload_stream(&mut self, refresh_tracks: bool) {
+        let (Some(api_client), Some(media)) = (self.api_client.clone(), self.media.clone()) else {
+            return;
+        };
+        let position = self.backend.borrow().position();
+        let url = api_client.stream_url(&media, &STREAM_SETTINGS.read());
+        info!(
+            "Reloading stream at {position}s: {}",
+            url.split("&ApiKey=").next().unwrap_or_default()
+        );
+        self.pending_seek = Some(position);
+        self.set_player_state(PlayerState::Loading);
+        self.backend.borrow_mut().play_uri(&url);
+        VIDEO_PLAYER_MENU_BROKER.send(VideoPlayerMenuInput::SetStreamURL(url));
+        if refresh_tracks {
+            self.controls.emit(VideoPlayerControlsInput::SetPlaying {
+                api_client,
+                item: Box::new(media),
+            });
+        }
     }
 
     fn set_player_state(&mut self, new_state: PlayerState) {
