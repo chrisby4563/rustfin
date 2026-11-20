@@ -4,7 +4,7 @@
 #
 # Requirements: jq, rustfmt, and the original author's generator:
 #   cargo install --root /tmp/progenitor cargo-progenitor --git https://github.com/coolavery/progenitor.git
-# Aufruf:  ./regenerate http://jellyfin.local:8096 /path/to/cargo-progenitor
+# Usage:  ./regenerate http://jellyfin.local:8096 /path/to/cargo-progenitor
 set -euo pipefail
 server=${1:?Server-URL}; gen=${2:?Pfad zu cargo-progenitor}
 here=$(cd "$(dirname "$0")" && pwd); work=$(mktemp -d)

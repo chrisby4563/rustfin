@@ -504,7 +504,7 @@ pub mod types {
         DateCreated,
         Username,
         LogSeverity,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -989,7 +989,7 @@ pub mod types {
         Preview,
         Recap,
         Commercial,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -1163,7 +1163,7 @@ pub mod types {
         Chromaprint,
         BlackFrame,
         None,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -1495,7 +1495,7 @@ pub mod types {
         DolbyAtmos,
         #[serde(rename = "DTSX")]
         Dtsx,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -4616,7 +4616,7 @@ pub mod types {
         UserView,
         Video,
         Year,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -6083,7 +6083,7 @@ pub mod types {
         Runtime,
         PlayCount,
         CommunityPlayCount,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -6254,7 +6254,7 @@ pub mod types {
         Song,
         MovieExtra,
         TvExtra,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -6339,7 +6339,7 @@ pub mod types {
         Audio,
         Video,
         Photo,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -6414,7 +6414,7 @@ pub mod types {
         #[serde(rename = "TV")]
         Tv,
         Radio,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -6882,7 +6882,7 @@ pub mod types {
         Video,
         VideoAudio,
         Audio,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -7026,7 +7026,7 @@ pub mod types {
         Playlists,
         #[serde(rename = "folders")]
         Folders,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -7140,7 +7140,7 @@ pub mod types {
         Books,
         #[serde(rename = "mixed")]
         Mixed,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -8021,7 +8021,7 @@ pub mod types {
         NoLock,
         Pessimistic,
         Optimistic,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -8104,7 +8104,7 @@ pub mod types {
         Thursday,
         Friday,
         Saturday,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -8188,7 +8188,7 @@ pub mod types {
         Daily,
         Weekdays,
         Weekends,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -8304,7 +8304,7 @@ pub mod types {
         Yadif,
         #[serde(rename = "bwdif")]
         Bwdif,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -9126,7 +9126,7 @@ pub mod types {
         Photo,
         Subtitle,
         Lyric,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -9210,7 +9210,7 @@ pub mod types {
         NightmodeDialogue,
         Rfc7845,
         Ac4,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -9304,7 +9304,7 @@ pub mod types {
         Everyday,
         Weekday,
         Weekend,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -9396,7 +9396,7 @@ pub mod types {
         AllowText,
         AllowImage,
         AllowNone,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -9501,7 +9501,7 @@ pub mod types {
         Superfast,
         #[serde(rename = "ultrafast")]
         Ultrafast,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -9591,7 +9591,7 @@ pub mod types {
     pub enum EncodingContext {
         Streaming,
         Static,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -10451,7 +10451,7 @@ pub mod types {
         Track,
         Book,
         Recording,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -10615,7 +10615,7 @@ pub mod types {
         ThemeVideo,
         Featurette,
         Short,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -10766,7 +10766,7 @@ pub mod types {
         Directory,
         NetworkComputer,
         NetworkShare,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -11057,7 +11057,7 @@ pub mod types {
         ContactAdmin,
         PinCode,
         InNetworkRequired,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -11641,7 +11641,7 @@ pub mod types {
         Play,
         SetMaxStreamingBitrate,
         SetPlaybackOrder,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -12258,7 +12258,7 @@ pub mod types {
     pub enum GroupQueueMode {
         Queue,
         QueueNext,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -12332,7 +12332,7 @@ pub mod types {
         RepeatOne,
         RepeatAll,
         RepeatNone,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -12406,7 +12406,7 @@ pub mod types {
     pub enum GroupShuffleMode {
         Sorted,
         Shuffle,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -12482,7 +12482,7 @@ pub mod types {
         Waiting,
         Paused,
         Playing,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -12738,7 +12738,7 @@ pub mod types {
         NotInGroup,
         GroupDoesNotExist,
         LibraryAccessDenied,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -12889,7 +12889,7 @@ pub mod types {
         Videotoolbox,
         #[serde(rename = "rkmpp")]
         Rkmpp,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -12973,7 +12973,7 @@ pub mod types {
     pub enum HlsAudioSeekStrategy {
         TrimCopiedAudio,
         TranscodeAudio,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -13212,7 +13212,7 @@ pub mod types {
         Png,
         Webp,
         Svg,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -13475,7 +13475,7 @@ pub mod types {
         RightTop,
         RightBottom,
         LeftBottom,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -13624,7 +13624,7 @@ pub mod types {
         P1080,
         P1440,
         P2160,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -13710,7 +13710,7 @@ pub mod types {
     pub enum ImageSavingConvention {
         Legacy,
         Compatible,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -13804,7 +13804,7 @@ pub mod types {
         Chapter,
         BoxRear,
         Profile,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -14141,7 +14141,7 @@ pub mod types {
     pub enum IsoType {
         Dvd,
         BluRay,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -14470,7 +14470,7 @@ pub mod types {
         #[serde(rename = "IsHD")]
         IsHd,
         SpecialFeatureCount,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -14650,7 +14650,7 @@ pub mod types {
         Likes,
         Dislikes,
         IsFavoriteOrLikes,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -14792,7 +14792,7 @@ pub mod types {
         SeriesDatePlayed,
         ParentIndexNumber,
         IndexNumber,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -14961,7 +14961,7 @@ pub mod types {
         UntilSpaceNeeded,
         UntilWatched,
         UntilDate,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -16646,7 +16646,7 @@ pub mod types {
     pub enum LiveTvServiceStatus {
         Ok,
         Unavailable,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -16767,7 +16767,7 @@ pub mod types {
         Remote,
         Virtual,
         Offline,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -16923,7 +16923,7 @@ pub mod types {
         Error,
         Critical,
         None,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -17602,7 +17602,7 @@ pub mod types {
         Udp,
         Rtp,
         Ftp,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -17834,7 +17834,7 @@ pub mod types {
         Recap,
         Outro,
         Intro,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -18406,7 +18406,7 @@ pub mod types {
         Default,
         Grouping,
         Placeholder,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -19335,7 +19335,7 @@ pub mod types {
         Http,
         #[serde(rename = "hls")]
         Hls,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -19415,7 +19415,7 @@ pub mod types {
         EmbeddedImage,
         Data,
         Lyric,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -19501,7 +19501,7 @@ pub mod types {
         Audio,
         Photo,
         Book,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -20016,7 +20016,7 @@ pub mod types {
         Overview,
         Runtime,
         OfficialRating,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -20233,7 +20233,7 @@ pub mod types {
         ValidationOnly,
         Default,
         FullRefresh,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -22341,7 +22341,7 @@ pub mod types {
         Editor,
         Translator,
         Narrator,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -22791,7 +22791,7 @@ pub mod types {
     pub enum PlayAccess {
         Full,
         None,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -22869,7 +22869,7 @@ pub mod types {
         PlayLast,
         PlayInstantMix,
         PlayShuffle,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -23014,7 +23014,7 @@ pub mod types {
         Transcode,
         DirectStream,
         DirectPlay,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -23228,7 +23228,7 @@ pub mod types {
         PreviousItem,
         RepeatMode,
         ShuffleMode,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -23524,7 +23524,7 @@ pub mod types {
         NotAllowed,
         NoCompatibleStream,
         RateLimitExceeded,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -23924,7 +23924,7 @@ pub mod types {
     pub enum PlaybackOrder {
         Default,
         Shuffle,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -24318,7 +24318,7 @@ pub mod types {
         SetShuffleMode,
         Ping,
         IgnoreWait,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -25216,7 +25216,7 @@ pub mod types {
         Rewind,
         FastForward,
         PlayPause,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -25980,7 +25980,7 @@ pub mod types {
         Malfunctioned,
         NotSupported,
         Disabled,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -26248,7 +26248,7 @@ pub mod types {
         RealTime,
         BelowNormal,
         AboveNormal,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -26397,7 +26397,7 @@ pub mod types {
         LessThanEqual,
         GreaterThanEqual,
         EqualsAny,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -26522,7 +26522,7 @@ pub mod types {
         VideoRangeType,
         NumStreams,
         VideoRotation,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -26649,7 +26649,7 @@ pub mod types {
         DolbyDigital,
         Thx,
         Atmos,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -27329,7 +27329,7 @@ pub mod types {
     pub enum RatingType {
         Score,
         Likes,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -27552,7 +27552,7 @@ pub mod types {
         HasActorFromRecentlyPlayed,
         HasLikedDirector,
         HasLikedActor,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -27641,7 +27641,7 @@ pub mod types {
         ConflictedOk,
         ConflictedNotOk,
         Error,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -28508,7 +28508,7 @@ pub mod types {
         RepeatNone,
         RepeatAll,
         RepeatOne,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -28971,7 +28971,7 @@ pub mod types {
     pub enum ScrollDirection {
         Horizontal,
         Vertical,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -29608,7 +29608,7 @@ pub mod types {
         Combined,
         KeyframeVisuals,
         Subtitle,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -29790,7 +29790,7 @@ pub mod types {
         Pause,
         Stop,
         Seek,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -30114,7 +30114,7 @@ pub mod types {
         Continuing,
         Ended,
         Unreleased,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -32102,7 +32102,7 @@ pub mod types {
         ScheduledTasksInfoStart,
         ScheduledTasksInfoStop,
         KeepAlive,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -33073,7 +33073,7 @@ pub mod types {
     pub enum SortOrder {
         Ascending,
         Descending,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -33373,7 +33373,7 @@ pub mod types {
         External,
         Hls,
         Drop,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -33457,7 +33457,7 @@ pub mod types {
         OnlyForced,
         None,
         Smart,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -34382,7 +34382,7 @@ pub mod types {
         CreateAndJoinGroups,
         JoinGroups,
         None,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -35079,7 +35079,7 @@ pub mod types {
         Failed,
         Cancelled,
         Aborted,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -35425,7 +35425,7 @@ pub mod types {
         Idle,
         Cancelling,
         Running,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -35600,7 +35600,7 @@ pub mod types {
         WeeklyTrigger,
         IntervalTrigger,
         StartupTrigger,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -36361,7 +36361,7 @@ pub mod types {
         Mobius,
         #[serde(rename = "bt2390")]
         Bt2390,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -36456,7 +36456,7 @@ pub mod types {
         Lum,
         #[serde(rename = "itp")]
         Itp,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -36539,7 +36539,7 @@ pub mod types {
         Tv,
         #[serde(rename = "pc")]
         Pc,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -36910,7 +36910,7 @@ pub mod types {
         VideoCodecTagNotSupported,
         StreamCountExceedsLimit,
         VideoRotationNotSupported,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -37034,7 +37034,7 @@ pub mod types {
     pub enum TranscodeSeekInfo {
         Auto,
         Bytes,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -37610,7 +37610,7 @@ pub mod types {
         None,
         Zero,
         Valid,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -37946,7 +37946,7 @@ pub mod types {
     pub enum TrickplayScanBehavior {
         Blocking,
         NonBlocking,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -38411,7 +38411,7 @@ pub mod types {
         LiveTvProgram,
         ChannelContent,
         Other,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -41334,7 +41334,7 @@ pub mod types {
         HalfTopAndBottom,
         #[serde(rename = "MVC")]
         Mvc,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -41416,7 +41416,7 @@ pub mod types {
         Sdr,
         #[serde(rename = "HDR")]
         Hdr,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -41524,7 +41524,7 @@ pub mod types {
         DoviInvalid,
         #[serde(rename = "HDR10Plus")]
         Hdr10Plus,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }
@@ -41622,7 +41622,7 @@ pub mod types {
         Iso,
         Dvd,
         BluRay,
-        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.
+        /// Value sent by the server that this library does not know.
         #[serde(other)]
         Unrecognized,
     }

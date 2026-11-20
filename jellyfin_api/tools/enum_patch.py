@@ -12,7 +12,7 @@ added=0; caught=0
 for name in re.findall(r'\n    pub enum ([A-Za-z0-9_]+) \{', src):
     m=re.search(r'(\n    pub enum '+name+r' \{\n)(.*?)(\n    \}\n)', src, re.S)
     body=m.group(2)
-    # nur reine String-Enums (Unit-Varianten)
+    # only plain string enums (unit variants)
     if re.search(r'^\s*[A-Za-z0-9_]+\s*[({]', body, re.M): continue
     have={}; ren=None; idents=set()
     for l in body.split('\n'):
@@ -30,12 +30,12 @@ for name in re.findall(r'\n    pub enum ([A-Za-z0-9_]+) \{', src):
     for val,i in new:
         add+=(f'\n        #[serde(rename = "{val}")]' if val!=i else '')+f'\n        {i},'
     if 'Unrecognized' not in idents:
-        add+='\n        /// Vom Server geschickter Wert, den diese Bibliothek nicht kennt.\n        #[serde(other)]\n        Unrecognized,'
+        add+='\n        /// Value sent by the server that this library does not know.\n        #[serde(other)]\n        Unrecognized,'
         caught+=1
     if not add: continue
     nb=body.rstrip(',')+','+add if not body.rstrip().endswith(',') else body+add
     src=src[:m.start(2)]+nb+src[m.end(2):]
-    # ToString / FromStr Arme
+    # ToString / FromStr arms
     ts=re.search(r'(impl ToString for '+name+r' \{.*?match \*self \{\n)(.*?)(\n\s*\}\n\s*\}\n\s*\})', src, re.S)
     if ts:
         arms=''.join(f'\n                Self::{i} => "{val}".to_string(),' for val,i in new)

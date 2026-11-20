@@ -1,8 +1,8 @@
-# jellyfin_api (Delfin-Fork)
+# jellyfin_api
 
-Rust-Datentypen für die Jellyfin-API, erzeugt mit progenitor aus der
-OpenAPI-Beschreibung des Servers. Aktueller Stand: **Jellyfin 12.4.0**.
-Ursprung: codeberg.org/avery42/jellyfin-api-rust (10.9.2).
+Rust types for the Jellyfin API, generated with progenitor from the
+server's OpenAPI description. Current version: **Jellyfin 12.4.0**.
+Origin: codeberg.org/avery42/jellyfin-api-rust (10.9.2).
 
-Neu erzeugen: `./regenerate <server-url> <pfad-zu-cargo-progenitor>`
-(Ablauf und Nacharbeiten stehen im Skript).
+Regenerate: `./regenerate <server-url> <path-to-cargo-progenitor>`
+(steps and post-processing are described in the script).
