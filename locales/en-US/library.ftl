@@ -60,3 +60,4 @@ home-hero-resume = Resume
 home-hero-details = Details
 home-hero-season = Season { $number }
 home-hero-episode = Episode { $number }
+library-search-placeholder = Movies, shows, people

@@ -127,13 +127,9 @@ impl Component for Library {
                                 set_stack: Some(&view_stack),
                             },
 
-                            pack_start = &gtk::ToggleButton {
-                                set_icon_name: "loupe",
-                                set_tooltip: tr!("library-search-button"),
-
-                                #[watch]
-                                set_visible: matches!(model.state, LibraryState::Ready),
-                                add_binding: (&model.searching, "active"),
+                            pack_start = &gtk::Label {
+                                set_label: "Delfin",
+                                add_css_class: "header-brand",
                             },
 
                             pack_end = model.borgar_menu.widget(),
@@ -143,6 +139,27 @@ impl Component for Library {
                                     sender.input(LibraryInput::Refresh);
                                 },
                             },
+
+                            // Konzept: Suchfeld als Pille (öffnet die Suche).
+                            pack_end = &gtk::ToggleButton {
+                                set_tooltip: tr!("library-search-button"),
+                                add_css_class: "header-search",
+                                #[wrap(Some)]
+                                set_child = &gtk::Box {
+                                    set_spacing: 8,
+                                    gtk::Image::from_icon_name("loupe"),
+                                    gtk::Label {
+                                        set_label: tr!("library-search-placeholder"),
+                                        set_xalign: 0.0,
+                                        set_hexpand: true,
+                                    },
+                                },
+
+                                #[watch]
+                                set_visible: matches!(model.state, LibraryState::Ready),
+                                add_binding: (&model.searching, "active"),
+                            },
+
                         },
 
                         #[name = "search"]

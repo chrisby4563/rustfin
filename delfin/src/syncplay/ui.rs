@@ -38,7 +38,7 @@ impl Component for SyncPlayButton {
         gtk::MenuButton {
             set_tooltip_text: Some(tr!("syncplay-tooltip")),
             #[watch]
-            set_css_classes: if model.group.is_some() { &["syncplay-active"] } else { &["flat"] },
+            set_css_classes: if model.group.is_some() { &["header-pill", "syncplay-active"] } else { &["header-pill"] },
 
             #[wrap(Some)]
             set_child = &gtk::Box {
@@ -46,9 +46,8 @@ impl Component for SyncPlayButton {
                 gtk::Image::from_icon_name("system-users-symbolic"),
                 gtk::Label {
                     #[watch]
-                    set_visible: model.group.is_some(),
-                    #[watch]
-                    set_label: &model.group.as_ref().map(status_text).unwrap_or_default(),
+                    set_label: &model.group.as_ref().map(status_text)
+                        .unwrap_or_else(|| tr!("syncplay-short").to_string()),
                 },
             },
 

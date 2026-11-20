@@ -60,3 +60,4 @@ home-hero-resume = Fortsetzen
 home-hero-details = Details
 home-hero-season = Staffel { $number }
 home-hero-episode = Folge { $number }
+library-search-placeholder = Filme, Serien, Personen
