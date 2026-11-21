@@ -7,6 +7,14 @@ Rustfin is a fork of [Delfin](https://codeberg.org/avery42/delfin) by Avery.
 Many thanks for the solid foundation. It is not affiliated with the Delfin or
 Jellyfin projects; please report Rustfin issues here, not upstream.
 
+> **An AI-assisted project.** The changes on top of Delfin were written almost
+> entirely by AI coding assistants (mainly Claude Code, some help from Codex),
+> directed, tested and reviewed by a human on real hardware and a real Jellyfin
+> server. Expect the occasional rough edge, and read the code with that in mind.
+>
+> **Forks are welcome.** Take it, change it, make it your own: the license
+> (GPL-3.0-or-later) only asks that your changes stay open as well.
+
 ## Features
 
 Everything Delfin offers, plus:
