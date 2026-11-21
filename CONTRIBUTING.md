@@ -9,7 +9,7 @@ See [Building](README.md#building). Before sending a pull request:
 
 - `cargo fmt --all`
 - `cargo clippy --workspace`
-- `MESON_BUILD_ROOT=$PWD/_build cargo test --workspace`
+- `MESON_BUILD_ROOT=$PWD/_build CARGO_TARGET_DIR=$PWD/_build/delfin cargo test -p rustfin`
 
 Code, comments and commit messages are in English. User-facing text goes
 through the Fluent files in `locales/`; please add new keys to at least
