@@ -1,4 +1,4 @@
-# Rustfin
+# Rustfin [![CI](https://github.com/chrisby4563/rustfin/actions/workflows/ci.yml/badge.svg)](https://github.com/chrisby4563/rustfin/actions/workflows/ci.yml)
 
 A native Jellyfin client for the Linux desktop, written in Rust with GTK4,
 libadwaita and an embedded mpv video player.
