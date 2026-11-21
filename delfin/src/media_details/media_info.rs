@@ -153,6 +153,7 @@ pub(crate) fn media_info_box(item: &BaseItemDto) -> Option<gtk::Widget> {
         .spacing(10)
         .valign(gtk::Align::Start)
         .width_request(300)
+        .hexpand(false)
         .css_classes(["media-info-card"])
         .build();
     card.append(
@@ -223,6 +224,10 @@ pub(crate) fn media_info_box(item: &BaseItemDto) -> Option<gtk::Widget> {
                 .xalign(1.0)
                 .hexpand(true)
                 .wrap(true)
+                .wrap_mode(gtk::pango::WrapMode::WordChar)
+                // Without a limit the natural width is the whole unwrapped
+                // line, and the card pushes chapters and cast aside.
+                .max_width_chars(34)
                 .selectable(true)
                 .justify(gtk::Justification::Right)
                 .build(),
