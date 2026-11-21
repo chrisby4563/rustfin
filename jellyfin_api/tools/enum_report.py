@@ -16,12 +16,12 @@ missing_total=0
 for name,sc in sorted(schemas.items()):
     if 'enum' in sc and sc.get('type')=='string':
         have=rust_enum(name)
-        if have is None: print("NEU (fehlt ganz):",name); continue
+        if have is None: print("NEW (missing entirely):",name); continue
         miss=[v for v in sc['enum'] if v not in have]
         gone=[v for v in have if v not in sc['enum']]
         if miss or gone:
             missing_total+=len(miss); print(f"{name}: +{miss} -{gone}")
-print("fehlende Werte gesamt:",missing_total)
+print("missing values total:",missing_total)
 # required-in-rust but optional on server
 for name,sc in sorted(schemas.items()):
     if 'properties' not in sc: continue
@@ -33,4 +33,4 @@ for name,sc in sorted(schemas.items()):
         if not ty.startswith('Option<') and 'default' not in m.group(0)[max(0,fm.start()-120):fm.start()]:
             jn=fm.group(1)
             if jn and (jn not in sc['properties'] or (jn not in req and sc['properties'][jn].get('nullable'))):
-                print("PFLICHT?",name,jn,ty)
+                print("REQUIRED?",name,jn,ty)

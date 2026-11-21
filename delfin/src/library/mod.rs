@@ -492,7 +492,7 @@ impl Library {
                 }
             }
 
-            // Benutzereinstellungen vor dem Aufbau holen (Startseite braucht sie).
+            // Fetch user settings before building the views (the home page needs them).
             crate::utils::user_config::refresh(&api_client).await;
 
             match tokio::try_join!(

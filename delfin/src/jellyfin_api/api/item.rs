@@ -45,7 +45,7 @@ pub struct StreamSettings {
     pub quality: StreamQuality,
     /// Selected version (media source ID); `None` = default.
     pub media_source_id: Option<String>,
-    /// Tonspur bei Server-Umwandlung; `None` = Server-Standard.
+    /// Audio track for server-side transcoding; `None` = server default.
     pub audio_stream_index: Option<i32>,
 }
 
@@ -129,14 +129,14 @@ impl ApiClient {
         url.to_string()
     }
 
-    /// Wird dieses Element vom Server umgewandelt (statt als Datei geliefert)?
+    /// Is this item transcoded by the server (instead of served as a file)?
     /// The stream then contains only one audio track; switching requires a
     /// new stream with `AudioStreamIndex`.
     pub fn is_server_transcoded(item: &BaseItemDto) -> bool {
         let is_disc = is_disc(item);
-        // 4K (meist HEVC 10 Bit HDR/Dolby Vision): Die Laptop-Grafik (UHD 620)
-        // can decode it, but cannot scale and convert HDR smoothly. The server
-        // (GTX 1080 Ti) converts it to 1080p.
+        // 4K (mostly HEVC 10-bit HDR/Dolby Vision): integrated laptop GPUs can
+        // decode it, but cannot scale and tone-map HDR smoothly. Let the server
+        // transcode it to 1080p instead.
         let is_4k = item.width.unwrap_or(0) > 1920 || item.height.unwrap_or(0) > 1440;
         is_disc || is_4k
     }

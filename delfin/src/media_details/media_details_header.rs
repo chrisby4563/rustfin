@@ -549,7 +549,7 @@ async fn get_play_next(
     )
 }
 
-/// Infozeile unter dem Titel: Jahre · Laufzeit · Genres · FSK · Bewertung · Ende.
+/// Info line below the title: years · runtime · genres · age rating · rating · ends at.
 fn meta_line(item: &BaseItemDto) -> String {
     use crate::{media_details::run_time::RunTime, utils::display_years::DisplayYears};
     let mut parts: Vec<String> = Vec::new();

@@ -1,4 +1,4 @@
-//! Einstellungen: Server & Konto (Konzept „Einstellungen“).
+//! Preferences: server & account.
 
 use std::{sync::Arc, time::Instant};
 
@@ -107,7 +107,7 @@ pub fn page(auth: Auth, window: &adw::PreferencesWindow) -> adw::PreferencesPage
         }
     });
 
-    // ── Konto ──
+    // ── Account ──
     let account_group = adw::PreferencesGroup::builder()
         .title(tr!("prefs-account-account"))
         .build();

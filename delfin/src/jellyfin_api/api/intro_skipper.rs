@@ -34,7 +34,7 @@ pub struct SkipSegment {
 }
 
 impl SkipSegment {
-    /// Abschnitt selbst.
+    /// The segment itself.
     pub fn range(&self) -> Range<f32> {
         self.start..self.end
     }
@@ -75,7 +75,7 @@ impl ApiClient {
                 };
                 let start = segment.start_ticks? as f32 / TICKS_PER_SECOND;
                 let end = segment.end_ticks? as f32 / TICKS_PER_SECOND;
-                // Abschnitte unter 2 s lohnen keinen Knopf.
+                // Segments shorter than 2 s are not worth a button.
                 (end - start >= 2.0).then_some(SkipSegment { kind, start, end })
             })
             .collect();

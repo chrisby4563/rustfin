@@ -38,8 +38,8 @@ pub struct AudioTracks {
     video_player: Arc<RefCell<dyn VideoPlayerBackend>>,
     menu: gio::Menu,
     audio_tracks_available: bool,
-    /// Vom Server umgewandelter Stream: Spuren kommen vom Server, ein Wechsel
-    /// fordert den Stream neu an (statt mpv-Spur umzuschalten).
+    /// Server-transcoded stream: tracks come from the server, switching
+    /// re-requests the stream (instead of switching the mpv track).
     server_mode: Rc<Cell<bool>>,
     /// Do not switch tracks while setting the preselection.
     suppress_switch: Rc<Cell<bool>>,

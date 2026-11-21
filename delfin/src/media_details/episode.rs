@@ -24,7 +24,7 @@ pub(crate) struct Episode {
     media: BaseItemDto,
     api_client: Arc<ApiClient>,
     thumbnail: OnceCell<Controller<EpisodeThumbnail>>,
-    /// Medieninfo schon geladen (Popover am Info-Knopf).
+    /// Media info already loaded (popover on the info button).
     info_loaded: bool,
     versions_loaded: bool,
     hidden: bool,
@@ -308,7 +308,7 @@ impl Component for EpisodeThumbnail {
                     set_content_fit: gtk::ContentFit::Cover,
                 },
 
-                // Fortschritt als Akzentbalken unten.
+                // Progress as an accent bar at the bottom.
                 add_overlay = &gtk::ProgressBar {
                     set_fraction: model.progress,
                     set_visible: model.progress > 0.0,

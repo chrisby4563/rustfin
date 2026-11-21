@@ -1,11 +1,11 @@
 //! SyncPlay: watch together through the Jellyfin server.
 //!
-//! Delfin maintains a WebSocket connection to the server (`/socket`) for group
+//! Rustfin keeps a WebSocket connection to the server (`/socket`) for group
 //! events and timestamped commands (“Pause at …”).
-//! Eigene Bedienung (Pause, Play, Spulen, neuer Titel) geht bei aktiver Gruppe
-//! not directly to the player, but as a request to the server, which forwards it
-//! alle Teilnehmer verteilt – auch an Delfin selbst. Damit alle im selben
-//! Moment handeln, misst Delfin den Abstand zur Server-Uhr (`/GetUtcTime`).
+//! While in a group, local controls (pause, play, seek, new title) do not go
+//! directly to the player but as a request to the server, which forwards it to
+//! all participants, including Rustfin itself. So that everyone acts at the
+//! same moment, Rustfin measures the offset to the server clock (`/GetUtcTime`).
 
 pub mod ui;
 
@@ -70,7 +70,7 @@ pub struct SyncCommand {
 struct Inner {
     api_client: Option<Arc<ApiClient>>,
     ws_tx: Option<mpsc::UnboundedSender<Message>>,
-    /// Server-Uhr minus eigene Uhr, in Millisekunden.
+    /// Server clock minus local clock, in milliseconds.
     offset_ms: i64,
     playlist_item_id: Option<String>,
     /// Created the group → add the current title to the group.
@@ -144,7 +144,7 @@ fn now_ms() -> i64 {
     Utc::now().timestamp_millis()
 }
 
-/// Aktuelle Server-Zeit in Millisekunden.
+/// Current server time in milliseconds.
 pub fn server_now_ms() -> i64 {
     now_ms() + inner().offset_ms
 }
@@ -155,7 +155,7 @@ fn server_now_iso() -> String {
         .to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
-/// Millisekunden bis zur Server-Zeit `when_ms` (negativ = schon vorbei).
+/// Milliseconds until server time `when_ms` (negative = already passed).
 pub fn delay_until(when_ms: i64) -> i64 {
     when_ms - server_now_ms()
 }
@@ -425,7 +425,7 @@ pub async fn connect() -> Result<()> {
     let alive = std::sync::Arc::new(AtomicBool::new(true));
     inner().ws_tx = Some(tx.clone());
 
-    // Schreiben
+    // Writing
     relm4::spawn(async move {
         while let Some(message) = rx.recv().await {
             if write.send(message).await.is_err() {
@@ -434,7 +434,7 @@ pub async fn connect() -> Result<()> {
         }
     });
 
-    // Lesen
+    // Reading
     relm4::spawn({
     let alive = alive.clone();
     async move {
@@ -482,10 +482,10 @@ pub async fn connect() -> Result<()> {
 }
 
 /// Rejoin the group after a disconnect (Wi-Fi change, standby). Retries with
-/// increasing intervals (2 … 30 seconds) at most
-/// 10 Minuten lang; tritt man vorher selbst einer Gruppe bei, endet es.
+/// increasing intervals (2 … 30 seconds) for at most 10 minutes; joining a
+/// group manually in the meantime ends it.
 ///
-/// Als geboxte `Send`-Future: `connect` startet `reconnect`, `reconnect` ruft
+/// Boxed `Send` future: `connect` starts `reconnect`, `reconnect` calls
 /// `connect` — without a fixed type annotation the compiler cannot infer `Send`.
 fn reconnect(
     group_id: String,
@@ -516,11 +516,11 @@ async fn reconnect_loop(group_id: String) {
     }
 }
 
-/// Abstand zur Server-Uhr messen (NTP-artig, beste von 5 Messungen).
+/// Measure the offset to the server clock (NTP-like, best of 5 samples).
 async fn sync_time() -> Result<()> {
     let api_client = inner().api_client.clone().context("not signed in")?;
     let url = api_client.root.join("GetUtcTime")?;
-    let mut best: Option<(i64, i64)> = None; // (Laufzeit, Abstand)
+    let mut best: Option<(i64, i64)> = None; // (round trip, offset)
     for _ in 0..5 {
         let t0 = now_ms();
         let response: Value = api_client

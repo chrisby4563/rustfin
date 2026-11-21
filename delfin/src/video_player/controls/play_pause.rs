@@ -27,7 +27,7 @@ pub enum PlayPauseInput {
     TogglePlaying,
     SetLoading,
     SetPlaying(bool),
-    /// Vom Nutzer (z. B. Medientasten) – geht bei SyncPlay an den Server.
+    /// From the user (e.g. media keys); goes to the server during SyncPlay.
     UserSetPlaying(bool),
     /// The player reports its state — display only, no command is sent back.
     /// (Previously this returned as `SetPlaying` and could overwrite a newly

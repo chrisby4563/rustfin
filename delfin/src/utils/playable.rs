@@ -34,7 +34,7 @@ pub async fn get_next_playable_media(
         // A season is only a folder without its own video file. Jellyfin 12
         // shows seasons under “Latest”, for example; when played directly the
         // server responds with 400 (“Season … has no media sources”) and the player
-        // bleibt schwarz bei 00:00.
+        // stays black at 00:00.
         BaseItemKind::Season => get_next_episode_in_season(api_client, &media).await,
         _ => Some(media),
     }

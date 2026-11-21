@@ -81,7 +81,7 @@
     border-radius: 4px;
   }
 
-  // Konzept: Staffeln als runde Reiter.
+  // Seasons as round tabs.
   .seasons-box {
     background: none;
     padding: 0;
@@ -116,7 +116,7 @@
     border-radius: 8px;
   }
 
-  // Konzept: Folgen als Karten.
+  // Episodes as cards.
   .episode-cards {
     background: none;
 
@@ -166,7 +166,7 @@
   }
 }
 
-// Konzept Film: Medieninfo-Kasten rechts.
+// Movie: media info card on the right.
 .media-info-card {
   background: unquote("@card_bg_color");
   border: 1px solid unquote("alpha(@window_fg_color, 0.12)");

@@ -509,7 +509,7 @@ fn disable_swipe_back(navigation: &adw::NavigationView) {
         .collect();
     for controller in &controllers {
         tracing::debug!(
-            "Wischgeste entfernt: {} ({:?})",
+            "Removed swipe gesture: {} ({:?})",
             controller.type_().name(),
             controller.propagation_phase()
         );

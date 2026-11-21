@@ -189,7 +189,7 @@ pub fn hero(api_client: Arc<ApiClient>) -> gtk::Widget {
         }
     });
 
-    // Laden: Liste holen, dann Bilder nacheinander.
+    // Loading: fetch the list, then the images one by one.
     gtk::glib::spawn_future_local({
         let overlay = overlay.clone();
         let slot = slot.clone();
@@ -292,7 +292,7 @@ fn show(slot: &Rc<RefCell<Slot>>, index: usize) {
         s.pictures[back].set_paintable(s.textures[index].as_ref());
         s.stack.set_visible_child(&s.pictures[back]);
         s.front = back;
-        // Text weich einblenden.
+        // Fade the text in softly.
         let text = s.text.clone();
         let target = adw::CallbackAnimationTarget::new(move |value| text.set_opacity(value));
         adw::TimedAnimation::new(&s.text, 0.0, 1.0, 450, target).play();

@@ -60,12 +60,12 @@ pub trait VideoPlayerBackend: Any + fmt::Debug {
     /// Seek to timestamp in seconds.
     fn seek_to(&self, seconds: usize);
 
-    /// Auf Bruchteile einer Sekunde genau springen (SyncPlay).
+    /// Seek with sub-second precision (SyncPlay).
     fn seek_to_precise(&self, seconds: f64) {
         self.seek_to(seconds.max(0.0).round() as usize);
     }
 
-    /// Genaue Position in Sekunden (SyncPlay).
+    /// Exact position in seconds (SyncPlay).
     fn position_precise(&self) -> f64 {
         self.position() as f64
     }

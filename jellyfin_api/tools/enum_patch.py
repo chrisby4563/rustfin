@@ -47,4 +47,4 @@ for name in re.findall(r'\n    pub enum ([A-Za-z0-9_]+) \{', src):
         src=src[:fs.end(2)]+arms+src[fs.end(2):]
     added+=len(new)
 open(p,'w').write(src)
-print("neue Werte:",added,"Auffangwerte:",caught)
+print("new values:",added,"fallbacks:",caught)

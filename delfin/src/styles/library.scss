@@ -30,7 +30,7 @@ scrollbar:not(.overlay-indicator) slider {
   font-weight: bold;
 }
 
-// Konzept: senkrechte Buchstabenleiste rechts.
+// Vertical letter bar on the right.
 .letter-scroller .letter-button {
   min-width: 32px;
   min-height: 22px;
@@ -128,7 +128,7 @@ scrollbar:not(.overlay-indicator) slider {
   }
 }
 
-// Konzept: Kopfzeile – Name, Reiter als Pillen, Suchfeld, Gemeinsam-Knopf.
+// Header: name, tabs as pills, search field, watch-together button.
 .header-brand {
   font-size: 20px;
   font-weight: 800;
@@ -163,7 +163,7 @@ button.header-pill {
   border: 1px solid unquote("alpha(@window_fg_color, 0.15)");
 }
 
-// Konzept: Einstellungen „Server & Konto“.
+// Preferences: server & account.
 .status-dot {
   border-radius: 5px;
   background: unquote("alpha(@window_fg_color, 0.3)");

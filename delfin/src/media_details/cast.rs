@@ -164,7 +164,7 @@ impl Component for CastRow {
 }
 
 /// People that belong in the cast row: director and writer first,
-/// dann Darsteller in Server-Reihenfolge (Hauptrollen vorn).
+/// then actors in server order (leading roles first).
 pub(crate) fn cast_people(people: &[BaseItemPerson]) -> Vec<BaseItemPerson> {
     let rank = |person: &BaseItemPerson| match person.type_ {
         PersonKind::Director => Some(0),
@@ -176,7 +176,7 @@ pub(crate) fn cast_people(people: &[BaseItemPerson]) -> Vec<BaseItemPerson> {
         .iter()
         .filter_map(|person| rank(person).map(|r| (r, person)))
         .collect();
-    selected.sort_by_key(|(r, _)| *r); // stabil: Reihenfolge innerhalb bleibt
+    selected.sort_by_key(|(r, _)| *r); // stable: keeps the order within a group
     selected.into_iter().map(|(_, p)| p.clone()).collect()
 }
 

@@ -81,7 +81,7 @@ pub struct VideoPlayer {
     syncplay_ready_at: Option<f64>,
     /// SyncPlay: last start (server time ms, position s) for synchronization.
     syncplay_anchor: Option<(i64, f64)>,
-    /// SyncPlay: Tempo gerade zum Aufholen verstellt.
+    /// SyncPlay: speed currently adjusted to catch up.
     syncplay_speed_adjusted: bool,
 
     cursor: Option<gdk::Cursor>,
@@ -111,8 +111,8 @@ pub enum VideoPlayerInput {
     MouseMove(f64, f64),
     ShowCursor,
     HideCursor,
-    /// Tonspur bei vom Server umgewandelten Streams wechseln (Index aus den
-    /// MediaStreams des Servers): Stream neu anfordern, an gleicher Stelle weiter.
+    /// Switch the audio track of a server-transcoded stream (index from the
+    /// server's MediaStreams): re-request the stream and continue at the same spot.
     SwitchServerAudioTrack(i32),
     /// Change quality: request a new stream and continue at the same position.
     SetQuality(StreamQuality),
@@ -468,13 +468,13 @@ impl Component for VideoPlayer {
                             (crate::syncplay::server_now_ms() - when_ms).max(0) as f64 / 1000.0;
                         let expected = start + elapsed;
                         let actual = self.backend.borrow().position_precise();
-                        let drift = actual - expected; // > 0: wir sind voraus
+                        let drift = actual - expected; // > 0: we are ahead
                         if drift.abs() >= 2.0 {
                             info!("SyncPlay drift {drift:.2}s → seek");
                             self.syncplay_reset_speed();
                             self.backend.borrow().seek_to_precise(expected);
                         } else if drift.abs() > 0.1 {
-                            // Sanft aufholen: kurz schneller/langsamer.
+                            // Catch up gently: briefly faster/slower.
                             let step = if drift.abs() > 0.5 { 0.10 } else { 0.05 };
                             let speed = if drift > 0.0 { 1.0 - step } else { 1.0 + step };
                             if !self.syncplay_speed_adjusted {
@@ -492,7 +492,7 @@ impl Component for VideoPlayer {
                 if STREAM_SETTINGS.read().quality != quality {
                     info!("Switching quality to {quality:?}");
                     STREAM_SETTINGS.write().quality = quality;
-                    // Tonspuren/Untertitel neu einlesen: direkt ↔ umgewandelt
+                    // Re-read audio/subtitle tracks: direct ↔ transcoded
                     // changes how tracks are switched.
                     self.reload_stream(true);
                 }
@@ -515,8 +515,8 @@ impl Component for VideoPlayer {
 
                 self.media = Some(*item.clone());
                 {
-                    // Quality remains for the session, version, and audio track
-                    // gelten je Titel.
+                    // Quality persists for the session; version and audio track
+                    // apply per title.
                     let mut settings = STREAM_SETTINGS.write();
                     settings.audio_stream_index = None;
                     settings.media_source_id = item
@@ -645,7 +645,7 @@ impl Component for VideoPlayer {
             }
             VideoPlayerInput::StopPlayer => {
                 self.inhibit_cookie = None;
-                // Player verlassen: Fenster wieder normal.
+                // Leaving the player: restore the window.
                 crate::utils::mini_player::leave();
                 crate::syncplay::set_local_item(None);
                 self.syncplay_anchor = None;
@@ -922,7 +922,7 @@ impl VideoPlayer {
     }
 
     /// Request a new stream with the current `STREAM_SETTINGS` and at the
-    /// gleichen Stelle weiterspielen.
+    /// continue playing from the same position.
     fn reload_stream(&mut self, refresh_tracks: bool) {
         let (Some(api_client), Some(media)) = (self.api_client.clone(), self.media.clone()) else {
             return;

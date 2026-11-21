@@ -25,7 +25,7 @@ pub(crate) static CHAPTERS_BROKER: ResettableMessageBroker<ChaptersInput> =
 
 pub(crate) struct Chapters {
     video_player: Arc<RefCell<dyn VideoPlayerBackend>>,
-    /// Startzeit in Sekunden je Zeile.
+    /// Start time in seconds per row.
     starts: Vec<usize>,
     thumbnails: Vec<gtk::Picture>,
     visible: bool,
@@ -187,7 +187,7 @@ impl Component for Chapters {
                     self.starts.push(start);
                     self.thumbnails.push(picture);
                 }
-                // Ein einzelnes Kapitel („Kapitel 1“ ab 0:00) bringt nichts.
+                // A single chapter (“Chapter 1” at 0:00) is useless.
                 self.visible = self.starts.len() > 1;
             }
             ChaptersInput::Activate(index) => {

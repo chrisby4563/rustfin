@@ -42,7 +42,7 @@ pub struct MediaPageInit<F, C: Component> {
     pub header_center: Option<gtk::Widget>,
     /// Below the title row (e.g. alphabet bar).
     pub header_below: Option<gtk::Widget>,
-    /// Rechts neben dem Raster (z. B. senkrechte Buchstabenleiste).
+    /// Right of the grid (e.g. the vertical letter bar).
     pub side_end: Option<gtk::Widget>,
 }
 

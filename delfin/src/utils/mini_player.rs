@@ -63,7 +63,7 @@ fn own_window() -> Option<Value> {
         .cloned()
 }
 
-/// In den Mini-Modus: schwebend, klein, unten rechts, angeheftet.
+/// Enter mini mode: floating, small, bottom right, pinned.
 pub fn enter() {
     if active() || !available() {
         return;
@@ -85,7 +85,7 @@ pub fn enter() {
         return;
     };
 
-    // Koordinaten sind logisch (Pixel / Skalierung).
+    // Coordinates are logical (pixels / scale).
     let scale = monitor["scale"].as_f64().unwrap_or(1.0).max(0.1);
     let width = (monitor["width"].as_f64().unwrap_or(1920.0) / scale) as i64;
     let height = (monitor["height"].as_f64().unwrap_or(1080.0) / scale) as i64;
@@ -93,7 +93,7 @@ pub fn enter() {
         monitor["x"].as_i64().unwrap_or_default(),
         monitor["y"].as_i64().unwrap_or_default(),
     );
-    // reserved = [links, oben, rechts, unten] (Leisten, Dock)
+    // reserved = [left, top, right, bottom] (bars, dock)
     let reserved_right = monitor["reserved"][2].as_i64().unwrap_or_default();
     let reserved_bottom = monitor["reserved"][3].as_i64().unwrap_or_default();
     let x = mx + width - reserved_right - WIDTH - MARGIN;

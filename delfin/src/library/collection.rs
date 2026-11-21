@@ -101,7 +101,7 @@ impl Component for Collection {
         let direction_button = gtk::Button::from_icon_name(direction_icon(query.descending));
         let filter_bar: gtk::Widget =
             filter_bar(&sender, &genre_dropdown, &direction_button).upcast();
-        // Buchstabenleiste senkrecht am rechten Rand.
+        // Vertical letter bar on the right edge.
         let letter_block: gtk::Widget = letter_bar(&sender).upcast();
 
         let model = Collection {
@@ -308,7 +308,7 @@ fn filter_bar(
         let sender = sender.clone();
         move |dropdown| sender.input(CollectionInput::SetSort(dropdown.selected()))
     });
-    // Sortierung + Richtung als verbundene Gruppe.
+    // Sort field + direction as a linked group.
     let sort_group = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     sort_group.add_css_class("linked");
     sort_group.append(&sort_dropdown);
@@ -340,7 +340,7 @@ fn filter_bar(
     bar
 }
 
-/// Buchstabenleiste senkrecht: Alle (∗), #, A–Z.
+/// Vertical letter bar: all (∗), #, A–Z.
 fn letter_bar(sender: &ComponentSender<Collection>) -> gtk::ScrolledWindow {
     let column = gtk::Box::builder()
         .orientation(gtk::Orientation::Vertical)

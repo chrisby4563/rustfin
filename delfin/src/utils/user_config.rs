@@ -10,7 +10,7 @@ use tracing::{info, warn};
 
 use crate::jellyfin_api::api_client::ApiClient;
 
-/// `UserConfiguration` des angemeldeten Kontos.
+/// `UserConfiguration` of the signed-in account.
 static USER_CONFIG: Lazy<std::sync::RwLock<Value>> =
     Lazy::new(|| std::sync::RwLock::new(Value::Null));
 /// Display-preference CustomPrefs (`DisplayPreferences/usersettings`, client `emby`).
@@ -34,7 +34,7 @@ pub fn load(api_client: Arc<ApiClient>) {
     });
 }
 
-/// Beide Einstellungsquellen neu holen (wartet darauf).
+/// Re-fetch both settings sources (awaits them).
 pub async fn refresh(api_client: &ApiClient) {
     if let Some(config) = fetch_user_config(api_client).await {
         *USER_CONFIG.write().unwrap() = config;
@@ -164,7 +164,7 @@ pub async fn cultures(api_client: &ApiClient) -> Vec<(String, String, String)> {
     out
 }
 
-/// mpv-Sprachliste zu einem Jellyfin-Sprachcode (z. B. `ger` → `ger,deu,de`).
+/// mpv language list for a Jellyfin language code (e.g. `ger` → `ger,deu,de`).
 pub fn mpv_languages(code: &str) -> String {
     match code {
         "" => String::new(),
@@ -190,7 +190,7 @@ pub fn mpv_track_options(local_audio: &str) -> Vec<(&'static str, String)> {
     }
     let slang = mpv_languages(&get_str("SubtitleLanguagePreference"));
     out.push(("slang", slang));
-    // Untertitelmodus wie Jellyfin (Default/Smart/OnlyForced/Always/None).
+    // Subtitle mode as in Jellyfin (Default/Smart/OnlyForced/Always/None).
     let mode = get_str("SubtitleMode");
     let (sid, fallback, forced, matching) = match mode.as_str() {
         "None" => ("no", "no", "no", "no"),

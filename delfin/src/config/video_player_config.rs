@@ -32,8 +32,8 @@ pub struct VideoPlayerConfig {
     pub backend: VideoPlayerBackendPreference,
     pub hls_playback: bool,
     pub deinterlace: Deinterlace,
-    /// Bevorzugte Tonspur-Sprachen, Komma-getrennt in Reihenfolge
-    /// (ISO 639-1/-2, z. B. "de,deu,ger").
+    /// Preferred audio languages, comma-separated in order of preference
+    /// (ISO 639-1/-2, e.g. "de,deu,ger").
     pub preferred_audio_languages: String,
 
     pub mpv_prefs: MpvPrefs,
@@ -51,7 +51,7 @@ pub enum SegmentAction {
     /// Show a skip button.
     #[default]
     Ask,
-    /// Nichts tun.
+    /// Do nothing.
     Nothing,
 }
 
@@ -253,7 +253,7 @@ impl MpvPrefs {
 }
 
 impl VideoPlayerConfig {
-    /// Bevorzugte Sprachen als Liste (klein geschrieben, ohne Leerzeichen).
+    /// Preferred languages as a list (lowercase, without spaces).
     pub fn preferred_audio_language_list(&self) -> Vec<String> {
         self.preferred_audio_languages
             .split(',')

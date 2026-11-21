@@ -93,7 +93,7 @@ fn load_resources() -> Result<()> {
     let res = match gio::Resource::load(RESOURCES_FILE) {
         Ok(res) => res,
         // Not installed (test build directly from the project directory): the
-        // Ressourcen aus dem Bauordner nehmen.
+        // resources come from the build directory.
         Err(_) => gio::Resource::load(PathBuf::from(BUILDDIR).join("data/resources.gresource"))
             .context("Could not load gresource file")?,
     };

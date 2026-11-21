@@ -61,7 +61,7 @@ fn add_row(expander: &adw::ExpanderRow, title: &str, subtitle: &str) {
     expander.add_row(&row);
 }
 
-/// Zugeklappt: „4K HEVC Dolby Vision · 3 Tonspuren · 12 Untertitel“.
+/// Collapsed: “4K HEVC Dolby Vision · 3 audio tracks · 12 subtitles”.
 fn summary(video: Option<&MediaStream>, audio: usize, subtitles: usize) -> String {
     let mut parts = vec![];
     if let Some(title) = video.and_then(|v| v.display_title.clone()) {

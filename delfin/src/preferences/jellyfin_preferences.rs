@@ -1,7 +1,7 @@
-//! Einstellungen wie im Jellyfin-Client: Wiedergabe (Ton, Untertitel, Ablauf,
-//! sections) and Home (areas, “Next Up”, libraries, display). Values marked
+//! Settings as in the Jellyfin client: Playback (audio, subtitles, behaviour,
+//! segments) and Home (areas, “Next Up”, libraries, display). Values marked
 //! (Jellyfin) reside on the server and also apply to the web UI; the rest is
-//! only for Delfin.
+//! only for Rustfin.
 
 use std::{collections::HashMap, sync::Arc};
 
@@ -102,7 +102,7 @@ fn save_local(change: impl FnOnce(&mut crate::config::Config)) {
     }
 }
 
-/// Sprachauswahl (Server-Kulturliste), gespeichert als Drei-Buchstaben-Code.
+/// Language picker (server culture list), stored as a three-letter code.
 fn language_combo(
     group: &adw::PreferencesGroup,
     api_client: &Arc<ApiClient>,
@@ -156,7 +156,7 @@ pub fn playback_page(api_client: Arc<ApiClient>, window: &adw::PreferencesWindow
         .icon_name("media-playback-start-symbolic")
         .build();
 
-    // ── Ton & Untertitel ──
+    // ── Audio & subtitles ──
     let tracks = adw::PreferencesGroup::builder()
         .title(tr!("prefs-jf-tracks"))
         .description(tr!("prefs-jf-tracks-description"))
@@ -196,7 +196,7 @@ pub fn playback_page(api_client: Arc<ApiClient>, window: &adw::PreferencesWindow
         tr!("prefs-jf-remember-subtitles.title"), tr!("prefs-jf-remember.subtitle"));
     page.add(&tracks);
 
-    // ── Ablauf ──
+    // ── Behaviour ──
     let flow = adw::PreferencesGroup::builder()
         .title(tr!("prefs-jf-flow"))
         .build();
@@ -222,7 +222,7 @@ pub fn playback_page(api_client: Arc<ApiClient>, window: &adw::PreferencesWindow
     flow.add(&quality_row);
     page.add(&flow);
 
-    // ── Abschnitte (Media Segments) ──
+    // ── Media segments ──
     let segments = adw::PreferencesGroup::builder()
         .title(tr!("prefs-jf-segments"))
         .description(tr!("prefs-jf-segments-description"))
@@ -286,7 +286,7 @@ pub fn home_page(api_client: Arc<ApiClient>, window: &adw::PreferencesWindow) ->
         .icon_name("go-home-symbolic")
         .build();
 
-    // ── Startseite ──
+    // ── Home ──
     let home = adw::PreferencesGroup::builder()
         .title(tr!("prefs-jf-home"))
         .description(tr!("prefs-jf-home-description"))
@@ -386,7 +386,7 @@ pub fn home_page(api_client: Arc<ApiClient>, window: &adw::PreferencesWindow) ->
     next_up.add(&episode_image);
     page.add(&next_up);
 
-    // ── Anzeige ──
+    // ── Display ──
     let display = adw::PreferencesGroup::builder()
         .title(tr!("prefs-jf-display"))
         .build();
@@ -396,7 +396,7 @@ pub fn home_page(api_client: Arc<ApiClient>, window: &adw::PreferencesWindow) ->
         tr!("prefs-jf-hide-played.title"), tr!("prefs-jf-synced"));
     page.add(&display);
 
-    // ── Bibliotheken ──
+    // ── Libraries ──
     let libraries = adw::PreferencesGroup::builder()
         .title(tr!("prefs-jf-libraries"))
         .description(tr!("prefs-jf-libraries-description"))

@@ -6,7 +6,7 @@
 #   cargo install --root /tmp/progenitor cargo-progenitor --git https://github.com/coolavery/progenitor.git
 # Usage:  ./regenerate http://jellyfin.local:8096 /path/to/cargo-progenitor
 set -euo pipefail
-server=${1:?Server-URL}; gen=${2:?Pfad zu cargo-progenitor}
+server=${1:?server URL}; gen=${2:?path to cargo-progenitor}
 here=$(cd "$(dirname "$0")" && pwd); work=$(mktemp -d)
 curl -fsS "$server/api-docs/openapi.json" -o "$work/openapi.json"
 # As in the original: remove endpoints and enum+allOf duplicates; the generator does not support version 3.0.4.
@@ -15,10 +15,10 @@ jq 'del(.paths) + {paths: {}} | .openapi = "3.0.3"
   "$work/openapi.json" > "$work/spec.json"
 RUSTFMT="$here/tools/rustfmt-shim" "$gen" progenitor -i "$work/spec.json" -o "$work/out" -n jellyfin_api -v 0.0.0 --interface builder --license-name Unlicense >/dev/null
 cp "$work/out/src/lib.rs" "$here/src/lib.rs"
-# Nacharbeiten:
+# Post-processing:
 # 1. Allow unknown fields (newer servers send new fields).
 sed -i '/^    #\[serde(deny_unknown_fields)\]$/d' "$here/src/lib.rs"
-# 2. Auffangwert Unrecognized in jedem String-Enum (neue Enum-Werte).
+# 2. Fallback variant Unrecognized in every string enum (new enum values).
 python3 -I "$here/tools/enum_patch.py" "$work/openapi.json" "$here/src/lib.rs"
 # 3. UserItemDataDto.Key is mandatory since 12.x but may be absent -> default value.
 python3 -I - "$here/src/lib.rs" <<'PY'
@@ -28,4 +28,4 @@ s=s[:i]+s[i:j].replace('#[serde(rename = "Key")]','#[serde(rename = "Key", defau
 open(p,'w').write(s)
 PY
 python3 -I "$here/tools/enum_report.py" "$work/openapi.json" "$here/src/lib.rs" | tail -1
-echo "Done. Update the version in jellyfin_api/Cargo.toml and build Delfin."
+echo "Done. Update the version in jellyfin_api/Cargo.toml and build Rustfin."

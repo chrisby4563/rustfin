@@ -108,7 +108,7 @@ impl ApiClient {
     }
 }
 
-/// Sortierung in einer Bibliothek.
+/// Sort order within a library.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum CollectionSort {
     #[default]
@@ -147,7 +147,7 @@ pub struct CollectionQuery {
     pub sort: CollectionSort,
     pub descending: bool,
     pub unplayed_only: bool,
-    /// Anfangsbuchstabe; `#` = Zahlen/Zeichen.
+    /// First letter; `#` = digits/symbols.
     pub letter: Option<char>,
     pub genre: Option<String>,
 }

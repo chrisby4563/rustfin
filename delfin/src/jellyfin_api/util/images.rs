@@ -160,7 +160,7 @@ impl ApiClient {
         Ok(url.to_string())
     }
 
-    /// Vorschaubild eines Kapitels (Index wie in `item.chapters`).
+    /// Thumbnail of a chapter (index as in `item.chapters`).
     pub fn get_chapter_image_url(
         &self,
         item_id: &uuid::Uuid,
@@ -178,7 +178,7 @@ impl ApiClient {
     }
 
     /// Portrait of a person (cast); square-cropped so it fits in
-    /// einen runden Avatar.
+    /// a round avatar.
     pub fn get_person_image_url(&self, person_id: &uuid::Uuid, tag: &str) -> Result<String> {
         let mut url = self
             .root

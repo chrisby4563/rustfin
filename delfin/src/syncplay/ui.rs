@@ -1,4 +1,4 @@
-//! Knopf „Gemeinsam schauen“: Gruppen anzeigen, beitreten, erstellen,
+//! “Watch together” button: list, join, create and
 //! leave. It lives in the library header bar and the player.
 
 use gtk::prelude::*;

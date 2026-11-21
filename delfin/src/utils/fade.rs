@@ -1,4 +1,4 @@
-//! Bilder weich einblenden, sobald sie geladen sind (statt aufzuploppen).
+//! Fade images in softly once they are loaded (instead of popping in).
 
 use adw::prelude::*;
 use relm4::{adw, gtk};
