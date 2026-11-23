@@ -1,3 +1,6 @@
+// No console window next to the app in Windows release builds.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 use std::{fmt::Debug, path::PathBuf};
 
 use anyhow::{Context, Result};
@@ -89,8 +92,25 @@ fn follow_desktop_theme() {
     std::mem::forget(monitor);
 }
 
+/// On Windows the installation can live anywhere, so the resources are looked
+/// up next to the executable (`<prefix>/bin/rustfin.exe` →
+/// `<prefix>/share/rustfin/resources.gresource`).
+#[cfg(windows)]
+fn resources_file() -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent()?.parent().map(PathBuf::from))
+        .map(|prefix| prefix.join("share").join("rustfin").join("resources.gresource"))
+        .unwrap_or_else(|| PathBuf::from(RESOURCES_FILE))
+}
+
+#[cfg(not(windows))]
+fn resources_file() -> PathBuf {
+    PathBuf::from(RESOURCES_FILE)
+}
+
 fn load_resources() -> Result<()> {
-    let res = match gio::Resource::load(RESOURCES_FILE) {
+    let res = match gio::Resource::load(resources_file()) {
         Ok(res) => res,
         // Not installed (test build directly from the project directory): the
         // resources come from the build directory.

@@ -1,0 +1,23 @@
+1 ICON "rustfin.ico"
+
+1 VERSIONINFO
+FILEVERSION 0,4,8,0
+PRODUCTVERSION 0,4,8,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "FileDescription", "Rustfin - Jellyfin client"
+      VALUE "ProductName", "Rustfin"
+      VALUE "FileVersion", "0.4.8"
+      VALUE "ProductVersion", "0.4.8"
+      VALUE "OriginalFilename", "rustfin.exe"
+      VALUE "LegalCopyright", "GPL-3.0-only"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

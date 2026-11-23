@@ -573,11 +573,11 @@ impl Component for VideoPlayer {
                     tracing::warn!("Cannot report playback for an item without an ID");
                 }
 
-                self.mpris_playback_reporter = Some(MprisPlaybackReporter::new(
+                self.mpris_playback_reporter = MprisPlaybackReporter::new(
                     api_client.clone(),
                     *item.clone(),
                     self.backend.clone(),
-                ));
+                );
 
                 self.api_client = Some(api_client.clone());
 

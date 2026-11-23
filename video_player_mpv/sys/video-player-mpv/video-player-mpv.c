@@ -1,9 +1,14 @@
 #include "video-player-mpv.h"
 #include "video-player-mpv/track.h"
 
+#include <gtk/gtk.h>
+#ifdef G_OS_WIN32
+#include <epoxy/wgl.h>
+#include <windows.h>
+#else
 #include <epoxy/egl.h>
 #include <epoxy/glx.h>
-#include <gtk/gtk.h>
+#endif
 #include <locale.h>
 #include <mpv/client.h>
 #include <mpv/render.h>
@@ -18,6 +23,9 @@
 #endif
 #ifdef GDK_WINDOWING_X11
 #include <gdk/x11/gdkx.h>
+#endif
+#ifdef GDK_WINDOWING_WIN32
+#include <gdk/win32/gdkwin32.h>
 #endif
 
 #include "video-player-mpv/track-list.h"
@@ -147,7 +155,15 @@ static void *get_proc_address(void *fn_ctx, const gchar *name) {
 #endif
 #ifdef GDK_WINDOWING_WIN32
   if (GDK_IS_WIN32_DISPLAY(display)) {
-    return wglGetProcAddress(name);
+    /* GTK may drive OpenGL through WGL or EGL (libANGLE / --gl-egl); WGL only
+     * knows extension functions, the GL 1.1 core lives in opengl32.dll. */
+    void *fn = (void *)wglGetProcAddress(name);
+    if (fn == NULL || fn == (void *)1 || fn == (void *)2 || fn == (void *)3 ||
+        fn == (void *)-1) {
+      HMODULE gl = GetModuleHandleA("opengl32.dll");
+      fn = gl ? (void *)GetProcAddress(gl, name) : NULL;
+    }
+    return fn;
   }
 #endif
   g_assert_not_reached();
@@ -450,7 +466,7 @@ double vpm_video_player_mpv_position(VpmVideoPlayerMpv *self) {
   return res;
 }
 
-void vpm_video_player_mpv_seek_to(VpmVideoPlayerMpv *self, uint seconds) {
+void vpm_video_player_mpv_seek_to(VpmVideoPlayerMpv *self, guint seconds) {
   gchar *val = g_strdup_printf("%i", seconds);
   const char *cmd[] = {"seek", val, "absolute", NULL};
   mpv_command(self->mpv_ctx->handle, cmd);
@@ -546,7 +562,7 @@ int vpm_video_player_mpv_current_audio_track(VpmVideoPlayerMpv *self) {
 }
 
 void vpm_video_player_mpv_set_audio_track(VpmVideoPlayerMpv *self,
-                                          uint audio_track_id) {
+                                          guint audio_track_id) {
   uint64_t id = (uint64_t)audio_track_id;
   mpv_set_property(self->mpv_ctx->handle, "aid", MPV_FORMAT_INT64, &id);
 }
@@ -563,7 +579,7 @@ int vpm_video_player_mpv_current_subtitle_track(VpmVideoPlayerMpv *self) {
 }
 
 void vpm_video_player_mpv_set_subtitle_track(VpmVideoPlayerMpv *self,
-                                             uint subtitle_track_id) {
+                                             guint subtitle_track_id) {
   uint64_t id = (uint64_t)subtitle_track_id;
   mpv_set_property(self->mpv_ctx->handle, "sid", MPV_FORMAT_INT64, &id);
 }
@@ -598,7 +614,7 @@ void vpm_video_player_mpv_set_subtitle_background_colour(
 }
 
 void vpm_video_player_mpv_set_subtitle_position(VpmVideoPlayerMpv *self,
-                                                uint position) {
+                                                guint position) {
   uint64_t position_int = (uint64_t)position;
   mpv_set_option(self->mpv_ctx->handle, "sub-pos", MPV_FORMAT_INT64,
                  &position_int);
@@ -614,7 +630,7 @@ void vpm_video_player_mpv_set_subtitle_font_family(VpmVideoPlayerMpv *self,
 }
 
 void vpm_video_player_mpv_set_subtitle_font_size(VpmVideoPlayerMpv *self,
-                                                 uint size) {
+                                                 guint size) {
   uint64_t size_int = (uint64_t)size;
   int err = mpv_set_option(self->mpv_ctx->handle, "sub-font-size",
                            MPV_FORMAT_INT64, &size_int);

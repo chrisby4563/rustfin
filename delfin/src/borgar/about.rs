@@ -12,10 +12,7 @@ impl SimpleComponent for About {
     type Output = ();
 
     view! {
-        adw::AboutWindow::from_appdata(
-            &format!("/io/github/chrisby4563/Rustfin/{}.metainfo.xml", APP_ID),
-            Some(VERSION),
-        ) {
+        about_window() -> adw::AboutWindow {
             set_modal: true,
             set_visible: true,
             set_version: VERSION,
@@ -31,4 +28,25 @@ impl SimpleComponent for About {
         let model = About;
         ComponentParts { model, widgets }
     }
+}
+
+#[cfg(target_os = "linux")]
+fn about_window() -> adw::AboutWindow {
+    adw::AboutWindow::from_appdata(
+        &format!("/io/github/chrisby4563/Rustfin/{}.metainfo.xml", APP_ID),
+        Some(VERSION),
+    )
+}
+
+/// libadwaita can only read AppStream metadata on Linux.
+#[cfg(not(target_os = "linux"))]
+fn about_window() -> adw::AboutWindow {
+    adw::AboutWindow::builder()
+        .application_name("Rustfin")
+        .application_icon(APP_ID)
+        .developer_name("chrisby4563")
+        .website("https://github.com/chrisby4563/rustfin")
+        .issue_url("https://github.com/chrisby4563/rustfin/issues")
+        .license_type(gtk::License::Gpl30Only)
+        .build()
 }

@@ -2,7 +2,7 @@ gnome = import('gnome')
 
 subdir('icons')
 
-ascli_exe = find_program('appstreamcli')
+ascli_exe = find_program('appstreamcli', required: false)
 
 metainfo_file = configure_file(
   input: 'io.github.chrisby4563.Rustfin.metainfo.xml.in',

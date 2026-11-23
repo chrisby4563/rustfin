@@ -52,15 +52,20 @@ impl MprisPlaybackReporter {
         api_client: Arc<ApiClient>,
         item: BaseItemDto,
         video_player: Arc<RefCell<dyn VideoPlayerBackend>>,
-    ) -> Self {
+    ) -> Option<Self> {
         let config = PlatformConfig {
             dbus_name: APP_ID,
             display_name: "Rustfin",
-            // Will need to pass a window handle for Windows support
-            hwnd: None,
+            hwnd: native_window_handle(),
         };
 
-        let mut controls = MediaControls::new(config).expect("Failed creating MediaControls");
+        let mut controls = match MediaControls::new(config) {
+            Ok(controls) => controls,
+            Err(err) => {
+                tracing::warn!("Media controls unavailable: {err:?}");
+                return None;
+            }
+        };
         attach_media_control_events(&mut controls);
         let controls = Arc::new(Mutex::new(controls));
 
@@ -136,7 +141,8 @@ impl MprisPlaybackReporter {
                     .lock()
                     .unwrap()
                     .set_metadata(metadata.clone())
-                    .expect("Failed to set MPRIS metadata");
+                    .map_err(|err| tracing::debug!("MPRIS metadata: {err:?}"))
+                    .ok();
 
                 let mut paused = false;
 
@@ -149,13 +155,15 @@ impl MprisPlaybackReporter {
                         MprisInput::Play => {
                             controls
                                 .set_playback(MediaPlayback::Playing { progress: None })
-                                .expect("Error setting MPRIS playback");
+                                .map_err(|err| tracing::debug!("MPRIS playback: {err:?}"))
+                                .ok();
                             paused = false;
                         }
                         MprisInput::Pause => {
                             controls
                                 .set_playback(MediaPlayback::Paused { progress: None })
-                                .expect("Error setting MPRIS playback");
+                                .map_err(|err| tracing::debug!("MPRIS playback: {err:?}"))
+                                .ok();
                             paused = true;
                         }
                         MprisInput::Duration(duration) => {
@@ -164,7 +172,8 @@ impl MprisPlaybackReporter {
                                     duration: Some(Duration::from_secs(duration as u64)),
                                     ..metadata.clone()
                                 })
-                                .expect("Error setting MPRIS metadata");
+                                .map_err(|err| tracing::debug!("MPRIS metadata: {err:?}"))
+                                .ok();
                         }
                         MprisInput::Position(position) => {
                             controls
@@ -181,7 +190,8 @@ impl MprisPlaybackReporter {
                                         ))),
                                     }
                                 })
-                                .expect("Error setting MPRIS playback");
+                                .map_err(|err| tracing::debug!("MPRIS playback: {err:?}"))
+                                .ok();
                         }
                         MprisInput::Close => {
                             rx.close();
@@ -192,12 +202,32 @@ impl MprisPlaybackReporter {
             }
         });
 
-        Self {
+        Some(Self {
             video_player,
             signal_handler_ids: Vec::default(),
             tx,
-        }
+        })
     }
+}
+
+/// Windows media controls (SMTC) need the native handle of the main window.
+#[cfg(windows)]
+fn native_window_handle() -> Option<*mut std::ffi::c_void> {
+    use relm4::gtk::{gdk, glib::translate::ToGlibPtr, prelude::*};
+
+    extern "C" {
+        fn gdk_win32_surface_get_handle(surface: *mut gdk::ffi::GdkSurface) -> *mut std::ffi::c_void;
+    }
+
+    let window = crate::utils::main_window::get_main_window()?;
+    let surface = window.surface()?;
+    let handle = unsafe { gdk_win32_surface_get_handle(surface.to_glib_none().0) };
+    (!handle.is_null()).then_some(handle)
+}
+
+#[cfg(not(windows))]
+fn native_window_handle() -> Option<*mut std::ffi::c_void> {
+    None
 }
 
 impl Drop for MprisPlaybackReporter {

@@ -16,6 +16,11 @@ fn main() {
     }
 
     build_css(&out_dir);
+
+    // Windows: application icon and version info in the executable.
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        embed_resource::compile("../packaging/windows/rustfin.rc", embed_resource::NONE);
+    }
 }
 
 fn link_libvideo_player_mpv(build_root: &Path) {

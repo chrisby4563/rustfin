@@ -33,7 +33,7 @@ impl QuickConnectClient {
 
     pub async fn init(&self) -> Result<QuickConnectResult> {
         let url = self.root.join("Initiate")?;
-        Ok(self.client.get(url).send().await?.json().await?)
+        Ok(self.client.post(url).send().await?.json().await?)
     }
 
     pub async fn connect(&self, secret: &str) -> Result<QuickConnectResult> {
