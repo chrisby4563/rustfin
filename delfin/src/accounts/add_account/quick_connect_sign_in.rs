@@ -183,11 +183,14 @@ fn begin_quick_connect(
     let sender = sender.clone();
     let url = server.url.clone();
     relm4::spawn(async move {
-        if let Err(err) = try_quick_connect(&sender, &url, &device_id).await {
+        // A code expires after a few minutes on the server; polling it then
+        // fails. Start over with a fresh code instead of spinning forever.
+        while let Err(err) = try_quick_connect(&sender, &url, &device_id).await {
             tracing::error!("Quick connect failed: {err:#?}");
             sender
                 .output(QuickConnectSignInOutput::Toast(err.to_string(), 3))
                 .unwrap();
+            tokio::time::sleep(Duration::from_secs(5)).await;
         }
     })
 }

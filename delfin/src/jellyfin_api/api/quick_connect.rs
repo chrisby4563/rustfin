@@ -33,13 +33,13 @@ impl QuickConnectClient {
 
     pub async fn init(&self) -> Result<QuickConnectResult> {
         let url = self.root.join("Initiate")?;
-        Ok(self.client.post(url).send().await?.json().await?)
+        Ok(self.client.post(url).send().await?.error_for_status()?.json().await?)
     }
 
     pub async fn connect(&self, secret: &str) -> Result<QuickConnectResult> {
         let mut url = self.root.join("Connect")?;
         url.query_pairs_mut().append_pair("Secret", secret);
-        Ok(self.client.get(url).send().await?.json().await?)
+        Ok(self.client.get(url).send().await?.error_for_status()?.json().await?)
     }
 }
 

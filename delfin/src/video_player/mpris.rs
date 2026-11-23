@@ -213,16 +213,7 @@ impl MprisPlaybackReporter {
 /// Windows media controls (SMTC) need the native handle of the main window.
 #[cfg(windows)]
 fn native_window_handle() -> Option<*mut std::ffi::c_void> {
-    use relm4::gtk::{gdk, glib::translate::ToGlibPtr, prelude::*};
-
-    extern "C" {
-        fn gdk_win32_surface_get_handle(surface: *mut gdk::ffi::GdkSurface) -> *mut std::ffi::c_void;
-    }
-
-    let window = crate::utils::main_window::get_main_window()?;
-    let surface = window.surface()?;
-    let handle = unsafe { gdk_win32_surface_get_handle(surface.to_glib_none().0) };
-    (!handle.is_null()).then_some(handle)
+    crate::utils::win32::hwnd(&crate::utils::main_window::get_main_window()?)
 }
 
 #[cfg(not(windows))]

@@ -197,3 +197,15 @@ prefs-account-password =
     .mismatch = Die neuen Passwörter stimmen nicht überein.
     .done = Passwort geändert.
     .failed = Passwort nicht geändert – aktuelles Passwort falsch?
+prefs-vp-mpv-hwdec =
+    .title = Hardware-Dekodierung
+    .subtitle =
+        Hardware-Dekodierung kann die Wiedergabe flüssiger machen.
+        Wähle „{ prefs-vp-mpv-hwdec-options.auto-safe }“ oder „{ prefs-vp-mpv-hwdec-options.off }“, falls es Probleme gibt.
+        Mehr dazu im <a href="{ $mpvManualUrl }">MPV-Handbuch</a>.
+prefs-vp-mpv-hwdec-options =
+    .auto = Automatisch
+    .auto-copy = Automatisch (Kopie)
+    .auto-safe = Automatisch (sicher)
+    .custom = Eigene
+    .off = Aus

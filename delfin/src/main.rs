@@ -28,6 +28,7 @@ fn main() {
                 rustfin::utils::redact::redact(&record.args().to_string())
             )
         })
+        .target(log_target())
         .init();
 
     #[cfg(feature = "gst")]
@@ -41,8 +42,42 @@ fn main() {
     relm4_icons::initialize_icons();
     load_css(&app);
     follow_desktop_theme();
+    #[cfg(windows)]
+    rustfin::utils::win32::center_dialogs_on_parent();
     app.with_broker(&APP_BROKER).run::<App>(());
     rustfin::syncplay::leave_on_exit();
+}
+
+/// A Windows GUI program started from Explorer or the Start menu has no
+/// stderr; log into `%LOCALAPPDATA%/rustfin/rustfin.log` instead
+/// (overwritten on every start). Redirected stderr is still honoured.
+#[cfg(windows)]
+fn log_target() -> env_logger::Target {
+    extern "system" {
+        fn GetStdHandle(std_handle: u32) -> *mut std::ffi::c_void;
+    }
+    const STD_ERROR_HANDLE: u32 = -12i32 as u32;
+
+    let handle = unsafe { GetStdHandle(STD_ERROR_HANDLE) };
+    if !handle.is_null() && handle as isize != -1 {
+        return env_logger::Target::Stderr;
+    }
+
+    let file = std::env::var_os("LOCALAPPDATA")
+        .map(|local| PathBuf::from(local).join("rustfin"))
+        .and_then(|dir| {
+            std::fs::create_dir_all(&dir).ok()?;
+            std::fs::File::create(dir.join("rustfin.log")).ok()
+        });
+    match file {
+        Some(file) => env_logger::Target::Pipe(Box::new(file)),
+        None => env_logger::Target::Stderr,
+    }
+}
+
+#[cfg(not(windows))]
+fn log_target() -> env_logger::Target {
+    env_logger::Target::Stderr
 }
 
 fn load_css<T: Debug>(app: &RelmApp<T>) {

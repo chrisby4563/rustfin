@@ -18,3 +18,5 @@ pub mod ticks;
 pub mod user_config;
 pub mod fade;
 pub mod redact;
+#[cfg(windows)]
+pub mod win32;
