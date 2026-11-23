@@ -74,14 +74,20 @@ impl Component for PasswordSignIn {
                         adw::PreferencesGroup {
                             adw::EntryRow {
                                 set_title: tr!("account-list-add-account-username"),
-                                set_activates_default: true,
+                                // Enter signs in (the default-widget route only worked once).
+                                connect_entry_activated[sender] => move |_| {
+                                    sender.input(PasswordSignInInput::SignIn);
+                                },
                                 connect_changed[sender] => move |entry| {
                                     sender.input(PasswordSignInInput::UsernameChanged(entry.text().to_string()))
                                 },
                             },
                             adw::PasswordEntryRow {
                                 set_title: tr!("account-list-add-account-password"),
-                                set_activates_default: true,
+                                // Enter signs in (the default-widget route only worked once).
+                                connect_entry_activated[sender] => move |_| {
+                                    sender.input(PasswordSignInInput::SignIn);
+                                },
                                 connect_changed[sender] => move |entry| {
                                     sender.input(PasswordSignInInput::PasswordChanged(entry.text().to_string()))
                                 },
@@ -181,6 +187,9 @@ impl Component for PasswordSignIn {
                 self.password = password;
             }
             PasswordSignInInput::SignIn => {
+                if self.username.is_empty() || matches!(self.valid, ValidationState::Loading) {
+                    return;
+                }
                 self.valid = ValidationState::Loading;
                 let url = self.server.url.clone();
                 let device_id = self.device_id;

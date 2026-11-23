@@ -15,3 +15,5 @@ account-list-quick-connect-instructions = Enter the following code to quick conn
 account-list-quick-connect-copy-tooltip = Copy Code to Clipboard
 account-list-quick-connect-copy-toast = Code copied to clipboard
 account-list-quick-connect-loading = Awaiting authorization...
+account-list-sign-in-wrong-credentials = Wrong username or password
+account-list-sign-in-error = Sign in failed

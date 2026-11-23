@@ -1,4 +1,5 @@
-; Rustfin – Windows installer (NSIS, Modern UI 2)
+﻿; Rustfin - Windows installer
+; Keep this file UTF-8 *with* BOM, otherwise NSIS misreads umlauts. (NSIS, Modern UI 2)
 ; Built by build-installer.sh:
 ;   makensis -DVERSION=x.y.z -DSTAGE=<staged dir> -DOUTFILE=<setup.exe> installer.nsi
 ;
@@ -29,6 +30,7 @@ OutFile "${OUTFILE}"
 InstallDir "$LOCALAPPDATA\Programs\${APPNAME}"
 InstallDirRegKey HKCU "Software\${APPNAME}" "InstallDir"
 RequestExecutionLevel user
+ManifestDPIAware true
 BrandingText "${APPNAME} ${VERSION}"
 
 VIProductVersion "${VERSION}.0"
@@ -61,7 +63,7 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "GPL-3.0-only"
 
 LangString SecApp ${LANG_GERMAN} "Rustfin"
 LangString SecApp ${LANG_ENGLISH} "Rustfin"
-LangString SecDesktop ${LANG_GERMAN} "Verknüpfung auf dem Desktop"
+LangString SecDesktop ${LANG_GERMAN} "Desktop-Verknüpfung"
 LangString SecDesktop ${LANG_ENGLISH} "Desktop shortcut"
 LangString AppRunning ${LANG_GERMAN} "Rustfin läuft noch. Bitte schließe Rustfin und klicke auf OK."
 LangString AppRunning ${LANG_ENGLISH} "Rustfin is still running. Please close it and click OK."

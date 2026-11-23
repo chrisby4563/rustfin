@@ -64,6 +64,8 @@ impl Component for AddAccountDialog {
             set_application: Some(&relm4::main_application()),
             set_title: Some(tr!("account-list-add-account-title")),
             set_modal: true,
+            // Wide enough for error toasts and the Quick Connect text.
+            set_default_width: 440,
             set_visible: true,
 
             connect_close_request[sender] => move |_| {

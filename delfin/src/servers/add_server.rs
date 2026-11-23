@@ -50,6 +50,8 @@ impl Component for AddServerDialog {
             set_application: Some(&relm4::main_application()),
             set_title: Some(tr!("server-list-add-server-title")),
             set_modal: true,
+            // Wide enough for error toasts and the Quick Connect text.
+            set_default_width: 440,
             set_visible: true,
 
             #[wrap(Some)]
@@ -83,10 +85,10 @@ impl Component for AddServerDialog {
                             adw::ActionRow {
                                 set_title: tr!("server-list-add-server-name"),
                                 #[watch]
-                                set_subtitle: if let ValidationState::Valid(server) = &model.valid {
-                                    &server.name
-                                } else {
-                                    "..."
+                                set_subtitle: &match &model.valid {
+                                    ValidationState::Valid(server) => server.name.clone(),
+                                    ValidationState::Error => tr!("server-list-add-server-error").to_string(),
+                                    _ => "...".to_string(),
                                 },
                                 add_suffix = if matches!(model.valid, ValidationState::Loading) {
                                     gtk::Spinner {
@@ -142,32 +144,47 @@ impl Component for AddServerDialog {
             AddServerInput::Validate => {
                 let url_entry = &widgets.url_entry;
 
-                let url = url_entry.text().to_string();
-                let url = httpify(&url);
-
-                // If HTTPS prefix was added, we want the user to see it so
-                // they can change it to HTTP if necessary
-                url_entry.set_text(&url);
-                url_entry.set_position(-1);
+                let input = url_entry.text().trim().to_string();
+                // Like the official Jellyfin apps: without an explicit scheme
+                // try HTTPS first, then plain HTTP (e.g. "server:8096").
+                let candidates = if input.contains("://") {
+                    vec![httpify(&input)]
+                } else {
+                    vec![
+                        httpify(&format!("https://{input}")),
+                        httpify(&format!("http://{input}")),
+                    ]
+                };
 
                 self.valid = ValidationState::Loading;
                 sender.oneshot_command(async move {
-                    let public_server_info = get_public_server_info(&url).await;
-                    if let Ok(public_server_info) = public_server_info {
-                        return AddServerCommandOutput::ServerValidated(ValidationState::Valid(
-                            config::Server {
-                                id: public_server_info.id,
-                                url,
-                                name: public_server_info.server_name,
-                                accounts: Vec::new(),
-                            },
-                        ));
+                    for url in candidates {
+                        match get_public_server_info(&url).await {
+                            Ok(info) => {
+                                return AddServerCommandOutput::ServerValidated(
+                                    ValidationState::Valid(config::Server {
+                                        id: info.id,
+                                        url,
+                                        name: info.server_name,
+                                        accounts: Vec::new(),
+                                    }),
+                                );
+                            }
+                            Err(err) => error!("Error getting server info from {url}: {err:#}"),
+                        }
                     }
-                    error!("Error getting server info: {:#?}", public_server_info);
                     AddServerCommandOutput::ServerValidated(ValidationState::Error)
                 });
             }
-            AddServerInput::Invalidate => self.valid = ValidationState::Invalid,
+            AddServerInput::Invalidate => {
+                // Showing the address that answered changes the entry too;
+                // that must not throw away the result.
+                let unchanged = matches!(&self.valid,
+                    ValidationState::Valid(server) if widgets.url_entry.text() == server.url.as_str());
+                if !unchanged {
+                    self.valid = ValidationState::Invalid;
+                }
+            }
             AddServerInput::AddServer => {
                 if let ValidationState::Valid(server) = &self.valid {
                     sender
@@ -181,14 +198,25 @@ impl Component for AddServerDialog {
         self.update_view(widgets, sender);
     }
 
-    fn update_cmd(
+    fn update_cmd_with_view(
         &mut self,
+        widgets: &mut Self::Widgets,
         message: Self::CommandOutput,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
         match message {
-            AddServerCommandOutput::ServerValidated(valid) => self.valid = valid,
+            AddServerCommandOutput::ServerValidated(valid) => {
+                self.valid = valid;
+                // Show the address that actually answered.
+                if let ValidationState::Valid(server) = &self.valid {
+                    if widgets.url_entry.text() != server.url.as_str() {
+                        widgets.url_entry.set_text(&server.url);
+                        widgets.url_entry.set_position(-1);
+                    }
+                }
+            }
         }
+        self.update_view(widgets, sender);
     }
 }

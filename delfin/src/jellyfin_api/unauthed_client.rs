@@ -4,7 +4,10 @@ use super::api_client::APP_USER_AGENT;
 
 pub(crate) fn get_unauthed_client_builder() -> ClientBuilder {
     #[cfg_attr(not(debug_assertions), allow(unused_mut))]
-    let mut client = Client::builder().user_agent(APP_USER_AGENT);
+    let mut client = Client::builder()
+        .user_agent(APP_USER_AGENT)
+        // An unreachable address must not leave a spinner forever.
+        .connect_timeout(std::time::Duration::from_secs(10));
 
     #[cfg(debug_assertions)]
     {

@@ -15,3 +15,5 @@ account-list-quick-connect-instructions = Code in Jellyfin unter „Quick Connec
 account-list-quick-connect-copy-tooltip = Code in die Zwischenablage kopieren
 account-list-quick-connect-copy-toast = Code in die Zwischenablage kopiert
 account-list-quick-connect-loading = Warte auf Freigabe …
+account-list-sign-in-wrong-credentials = Name oder Passwort falsch
+account-list-sign-in-error = Anmeldung fehlgeschlagen

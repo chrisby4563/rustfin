@@ -1,7 +1,7 @@
 server-list-add-server-name = Servername
 server-list-page-title = Server
 server-list-empty =
-    .title = Keine Server verfügbar,
+    .title = Keine Server verfügbar
     .subtitle = Füge einen Server hinzu, um Inhalte anzusehen
 server-list-add-server-submit-button = Server hinzufügen
 server-list-add-server-button = Server hinzufügen
@@ -10,3 +10,4 @@ server-list-add-server-title = Server hinzufügen
 server-list =
     .title = Serverauswahl
     .description = Wähle, welchen Jellyfin-Server du verwenden möchtest
+server-list-add-server-error = Unter dieser Adresse antwortet kein Jellyfin-Server

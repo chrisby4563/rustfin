@@ -72,10 +72,12 @@ pub async fn authenticate_by_name(
             let res = res.json().await?;
             Ok(res)
         }
-        StatusCode::UNAUTHORIZED => anyhow::bail!("Wrong username or password."),
+        StatusCode::UNAUTHORIZED => {
+            anyhow::bail!("{}", crate::tr!("account-list-sign-in-wrong-credentials"))
+        }
         _ => {
             error!("Sign in error: {:#?}", res);
-            anyhow::bail!("Error signing in.");
+            anyhow::bail!("{}", crate::tr!("account-list-sign-in-error"));
         }
     }
 }
