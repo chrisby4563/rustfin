@@ -378,10 +378,6 @@ fn monitor_scale() -> i32 {
 // ---------------------------------------------------------------------------
 // Look of the Linux version
 
-/// Text size relative to icons and spacing on the Linux machines (GNOME text
-/// scaling factor there).
-const LINUX_TEXT_SCALE: f64 = 1.18;
-
 /// The design asks for Inter / Space Grotesk; where they are missing (as on the
 /// Linux machines) GTK falls back to Liberation Sans. Arial has the same metrics
 /// and ships with Windows, whose own "sans-serif" fallback is much wider.
@@ -393,13 +389,14 @@ window { font-family: "Inter", "Liberation Sans", "Arial", sans-serif; }
 }
 "#;
 
-/// Same fonts and text proportions as on Linux.
+/// Same fonts as on Linux, text size as in other Windows programs.
 pub fn apply_linux_look() {
     let Some(settings) = gtk::Settings::default() else {
         return;
     };
-    // Linux: "Adwaita Sans 11" (Windows default: "Segoe UI 9").
-    settings.set_gtk_font_name(Some("Arial 11"));
+    // Size as in other Windows programs ("Segoe UI 9"); Linux uses 11, which
+    // made Rustfin's text bigger than everything else on Windows.
+    settings.set_gtk_font_name(Some("Arial 9"));
 
     if let Some(display) = gdk::Display::default() {
         let provider = gtk::CssProvider::new();
@@ -411,10 +408,16 @@ pub fn apply_linux_look() {
         );
     }
 
-    // With real HiDPI scaling (Rustfin's GTK: scale 2 from 150 %) GTK shrinks the
-    // text DPI to the remainder; use Linux's proportions instead. At scale 1 GTK
-    // already enlarges the text to the system DPI.
-    if monitor_scale() >= 2 {
-        settings.set_gtk_xft_dpi((96.0 * LINUX_TEXT_SCALE * 1024.0) as i32);
+    // Text at the Windows scaling, like the other programs: GTK renders with an
+    // integer scale (175 % -> 2), so the text DPI makes up the difference
+    // (168 / 2 = 84). Linux's extra text scaling (1.18) made Rustfin bigger than
+    // everything else on Windows.
+    let gtk_scale = monitor_scale();
+    if gtk_scale >= 2 {
+        extern "system" {
+            fn GetDpiForSystem() -> u32;
+        }
+        let system_dpi = f64::from(unsafe { GetDpiForSystem() }.max(96));
+        settings.set_gtk_xft_dpi((system_dpi / f64::from(gtk_scale) * 1024.0) as i32);
     }
 }
