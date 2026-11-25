@@ -39,7 +39,7 @@ use crate::{
         next_up::NEXT_UP_VISIBILE,
     },
 };
-use gtk::prelude::*;
+use gtk::{glib, prelude::*};
 use jellyfin_api::types::BaseItemDto;
 use playback_speed::PLAYBACK_SPEED_BROKER;
 use relm4::{gtk, Component, ComponentController, ComponentParts, Controller, SimpleComponent};
@@ -295,6 +295,8 @@ impl SimpleComponent for VideoPlayerControls {
         second_row.append(fullscreen.widget());
         model.fullscreen = Some(fullscreen);
 
+        fit_to_width(&second_row);
+
         NEXT_UP_VISIBILE.subscribe(sender.input_sender(), |visible| {
             if *visible {
                 VideoPlayerControlsInput::SetShowControls(false)
@@ -361,4 +363,62 @@ impl SimpleComponent for VideoPlayerControls {
             }
         }
     }
+}
+
+/// In narrow windows the row is wider than the window and the right-hand
+/// buttons are cut off. Then hide the volume slider (the mute button stays)
+/// and the label of the “Together” button (its icon stays); show them again
+/// once there is room.
+fn fit_to_width(row: &gtk::Box) {
+    let optional: Vec<gtk::Widget> = descendants(row.upcast_ref())
+        .into_iter()
+        .filter(|widget| {
+            widget.is::<gtk::Scale>()
+                || (widget.is::<gtk::Label>()
+                    && widget
+                        .ancestor(gtk::MenuButton::static_type())
+                        .is_some_and(|button| button.has_css_class("header-pill")))
+        })
+        .collect();
+    if optional.is_empty() {
+        return;
+    }
+    // Minimum width with everything shown, measured while shown.
+    let full_width = std::cell::Cell::new(0);
+    let last_available = std::cell::Cell::new(-1);
+    row.add_tick_callback(move |row, _| {
+        // The controls span the window; their own allocation grows with the
+        // overflowing row, so compare with the window instead.
+        let (Some(root), Some(controls)) = (row.root(), row.parent()) else {
+            return glib::ControlFlow::Continue;
+        };
+        let available = root.width();
+        if available <= 0 || available == last_available.get() {
+            return glib::ControlFlow::Continue;
+        }
+        last_available.set(available);
+        let shown = optional[0].is_visible();
+        if shown {
+            // Including the padding of the controls box.
+            full_width.set(controls.measure(gtk::Orientation::Horizontal, -1).0);
+        }
+        let fits = available >= full_width.get();
+        if fits != shown {
+            for widget in &optional {
+                widget.set_visible(fits);
+            }
+        }
+        glib::ControlFlow::Continue
+    });
+}
+
+fn descendants(widget: &gtk::Widget) -> Vec<gtk::Widget> {
+    let mut out = Vec::new();
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        out.push(current.clone());
+        out.extend(descendants(&current));
+        child = current.next_sibling();
+    }
+    out
 }

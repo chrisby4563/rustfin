@@ -586,11 +586,14 @@ void vpm_video_player_mpv_set_subtitle_track(VpmVideoPlayerMpv *self,
 
 void vpm_video_player_mpv_add_subtitle_track(VpmVideoPlayerMpv *self,
                                              const char *url,
-                                             const char *title) {
+                                             const char *title, bool select) {
   const char *cmd[] = {
-      "sub-add", url, "auto", title, NULL,
+      "sub-add", url, select ? "select" : "auto", title, NULL,
   };
-  if (mpv_command(self->mpv_ctx->handle, cmd) < 0) {
+  // Asynchronous: mpv downloads the file in `sub-add`, and the server may first
+  // have to extract it from a large video (minutes). Synchronously that blocks
+  // the UI; the new track shows up via the track list when loaded.
+  if (mpv_command_async(self->mpv_ctx->handle, 0, cmd) < 0) {
     printf("Error adding subtitle track %s", title);
   }
 }

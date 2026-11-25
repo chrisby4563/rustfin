@@ -326,7 +326,55 @@ impl Component for App {
                     self.collection = Some(collection);
                 }
             }
-            AppInput::PlayVideo(item) => {
+            AppInput::PlayVideo(mut item) => {
+                // Before playing, complete the item (once):
+                // - a season or series has no video of its own (server: 400, player
+                //   stays black) → its next episode, as the home tiles do;
+                // - items from home rows (hero, Continue Watching, …) come without
+                //   image size, which the quality decision (4K → server converts)
+                //   needs → load the full item so playback matches the details page.
+                use jellyfin_api::types::BaseItemKind as Kind;
+                let is_folder = matches!(item.type_, Some(Kind::Season | Kind::Series));
+                let is_video = matches!(item.type_, Some(Kind::Movie | Kind::Episode | Kind::Video));
+                let needs_size = is_video && item.width.is_none() && item.media_sources.is_none();
+                if is_folder || needs_size {
+                    if let (Some(api_client), Some(id)) = (self.api_client.clone(), item.id) {
+                        let sender = sender.clone();
+                        relm4::spawn_local(async move {
+                            let resolved = if is_folder {
+                                crate::utils::playable::get_next_playable_media(
+                                    api_client.clone(),
+                                    item.clone(),
+                                )
+                                .await
+                                .filter(|next| next.id != Some(id))
+                            } else {
+                                Some(item.clone())
+                            };
+                            let Some(mut next) = resolved else {
+                                tracing::warn!("No playable episode for {id}");
+                                let mut message = "No playable media found".to_string();
+                                if let Some(name) = item.name.as_ref() {
+                                    message += &format!(" for {name}");
+                                }
+                                sender.input(AppInput::Toast(message, None));
+                                return;
+                            };
+                            if let Some(next_id) = next.id {
+                                match api_client.get_item(&next_id).await {
+                                    Ok(full) => next = full,
+                                    Err(err) => {
+                                        tracing::warn!("Could not load item before playback: {err}")
+                                    }
+                                }
+                            }
+                            // Load only once, even if the server has no size.
+                            next.media_sources.get_or_insert_with(Vec::new);
+                            sender.input(AppInput::PlayVideo(next));
+                        });
+                        return;
+                    }
+                }
                 // In a SyncPlay group, the server starts the title for everyone.
                 let start_ticks = item
                     .user_data

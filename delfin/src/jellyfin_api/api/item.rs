@@ -141,6 +141,32 @@ impl ApiClient {
         is_disc || is_4k
     }
 
+    /// A text subtitle of the file as a separate download (converted by the
+    /// server to a format mpv reads).
+    pub fn subtitle_url(
+        &self,
+        item_id: &Uuid,
+        media_source_id: &str,
+        index: i32,
+        codec: Option<&str>,
+    ) -> String {
+        let format = match codec.map(str::to_ascii_lowercase).as_deref() {
+            Some("ass" | "ssa") => "ass",
+            Some("webvtt" | "vtt") => "vtt",
+            _ => "srt",
+        };
+        let mut url = self
+            .root
+            .join(&format!(
+                "Videos/{}/{media_source_id}/Subtitles/{index}/0/Stream.{format}",
+                item_id.simple()
+            ))
+            .unwrap();
+        url.query_pairs_mut()
+            .append_pair("ApiKey", &self.account.access_token);
+        url.to_string()
+    }
+
     pub fn get_stream_url(&self, item_id: &Uuid) -> String {
         if CONFIG.read().video_player.hls_playback {
             self.root

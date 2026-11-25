@@ -29,12 +29,13 @@ impl VideoPlayerMpv {
     }
 
     #[doc(alias = "vpm_video_player_mpv_add_subtitle_track")]
-    pub fn add_subtitle_track(&self, url: &str, title: &str) {
+    pub fn add_subtitle_track(&self, url: &str, title: &str, select: bool) {
         unsafe {
             ffi::vpm_video_player_mpv_add_subtitle_track(
                 self.to_glib_none().0,
                 url.to_glib_none().0,
                 title.to_glib_none().0,
+                select,
             );
         }
     }

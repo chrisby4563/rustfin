@@ -245,8 +245,8 @@ impl VideoPlayerBackend for VideoPlayerBackendMpv {
             .set_subtitle_track(subtitle_track_id.map_or(0, |id| id as u32));
     }
 
-    fn add_subtitle_track(&self, url: &str, title: &str) {
-        self.widget.add_subtitle_track(url, title);
+    fn add_subtitle_track(&self, url: &str, title: &str, select: bool) {
+        self.widget.add_subtitle_track(url, title, select);
     }
 
     fn current_audio_track(&self) -> Option<usize> {
@@ -374,6 +374,10 @@ impl VideoPlayerBackend for VideoPlayerBackendMpv {
             id,
             self.widget
                 .connect_tracks_updated(move |_player, track_list| {
+                    // No stream loaded (between two files).
+                    if track_list.is_empty() {
+                        return;
+                    }
                     let mut subtitle_tracks: Vec<SubtitleTrack> = vec![];
                     for i in 0..track_list.len() {
                         if let Some(track) = track_list.track(i) {

@@ -18,6 +18,7 @@ use std::time::Duration;
 
 use adw::prelude::*;
 use backends::with_backend_mpv;
+use controls::subtitles::{SubtitlesInput, SUBTITLES_BROKER};
 use controls::video_player_menu::{VideoPlayerMenuInput, VIDEO_PLAYER_MENU_BROKER};
 use gtk::gdk;
 use jellyfin_api::types::{BaseItemDto, BaseItemKind};
@@ -942,6 +943,8 @@ impl VideoPlayer {
                 api_client,
                 item: Box::new(media),
             });
+        } else {
+            SUBTITLES_BROKER.send(SubtitlesInput::StreamReloaded);
         }
     }
 

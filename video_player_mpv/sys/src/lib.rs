@@ -127,6 +127,7 @@ extern "C" {
         self_: *mut VpmVideoPlayerMpv,
         url: *const c_char,
         title: *const c_char,
+        select: bool,
     );
     pub fn vpm_video_player_mpv_current_audio_track(self_: *mut VpmVideoPlayerMpv) -> c_int;
     pub fn vpm_video_player_mpv_current_subtitle_track(self_: *mut VpmVideoPlayerMpv) -> c_int;

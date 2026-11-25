@@ -46,7 +46,7 @@ void vpm_video_player_mpv_set_subtitle_track(VpmVideoPlayerMpv *self,
                                              guint subtitle_track_id);
 void vpm_video_player_mpv_add_subtitle_track(VpmVideoPlayerMpv *self,
                                              const char *url,
-                                             const char *title);
+                                             const char *title, bool select);
 
 void vpm_video_player_mpv_set_subtitle_scale(VpmVideoPlayerMpv *self,
                                              double subtitle_scale);

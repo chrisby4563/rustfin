@@ -29,10 +29,12 @@ relm4::new_stateful_action!(
     Option<i32>
 );
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExternalSubtitleTrack {
     name: String,
     url: String,
+    /// Jellyfin's default subtitle for this user (language/mode preferences).
+    is_default: bool,
 }
 
 #[derive(Debug)]
@@ -41,6 +43,13 @@ pub struct Subtitles {
     menu: gio::Menu,
     subtitles_available: bool,
     previous_track: Option<usize>,
+    /// Subtitles loaded separately from the stream (external files, and
+    /// embedded text subtitles while the server converts the video).
+    external: Vec<ExternalSubtitleTrack>,
+    /// `external` still has to be added to the current stream.
+    external_pending: bool,
+    /// The current stream is loaded; mpv only accepts `sub-add` then.
+    stream_ready: bool,
 }
 
 #[derive(Debug)]
@@ -51,6 +60,9 @@ pub enum SubtitlesInput {
     },
     SubtitlesUpdated(Vec<SubtitleTrack>),
     ToggleSubtitles,
+    /// Same title, new stream (e.g. other audio track): add the separately
+    /// loaded subtitles again.
+    StreamReloaded,
 }
 
 #[derive(Debug)]
@@ -93,6 +105,9 @@ impl Component for Subtitles {
             menu: gio::Menu::new(),
             subtitles_available: false,
             previous_track: None,
+            external: Vec::new(),
+            external_pending: false,
+            stream_ready: false,
         };
 
         model
@@ -133,9 +148,19 @@ impl Component for Subtitles {
             SubtitlesInput::Reset { api_client, item } => {
                 self.subtitles_available = false;
                 self.previous_track = None;
+                self.external.clear();
+                self.external_pending = false;
+                self.stream_ready = false;
                 Subtitles::load_external_subtitles(&sender, &api_client, &item);
             }
+            SubtitlesInput::StreamReloaded => {
+                self.stream_ready = false;
+                self.external_pending = !self.external.is_empty();
+            }
             SubtitlesInput::SubtitlesUpdated(subtitle_streams) => {
+                // Only sent while a stream is loaded.
+                self.stream_ready = true;
+                self.add_pending_external();
                 if subtitle_streams.is_empty() {
                     return;
                 }
@@ -214,11 +239,9 @@ impl Component for Subtitles {
     ) {
         match message {
             SubtitlesCommandOutput::ExternalSubtitlesLoaded(Some(external_subtitles)) => {
-                for sub in external_subtitles {
-                    self.video_player
-                        .borrow()
-                        .add_subtitle_track(&sub.url, &sub.name);
-                }
+                self.external = external_subtitles;
+                self.external_pending = !self.external.is_empty();
+                self.add_pending_external();
             }
             SubtitlesCommandOutput::ExternalSubtitlesLoaded(None) => {}
         }
@@ -226,12 +249,30 @@ impl Component for Subtitles {
 }
 
 impl Subtitles {
+    /// Add `external` to the stream once it is loaded (mpv rejects `sub-add`
+    /// before that, and drops added tracks when a new stream starts).
+    fn add_pending_external(&mut self) {
+        if !self.external_pending || !self.stream_ready {
+            return;
+        }
+        self.external_pending = false;
+        for sub in &self.external {
+            self.video_player
+                .borrow()
+                .add_subtitle_track(&sub.url, &sub.name, sub.is_default);
+        }
+    }
+
     fn load_external_subtitles(
         sender: &ComponentSender<Self>,
         api_client: &Arc<ApiClient>,
         item: &BaseItemDto,
     ) {
         let Some(item_id) = item.id else { return };
+        let settings = crate::globals::STREAM_SETTINGS.read().clone();
+        // A converted stream carries no subtitles: load the file's text
+        // subtitles separately, as Jellyfin's web player does.
+        let transcoded = ApiClient::is_transcoded(item, &settings);
 
         sender.oneshot_command({
             let api_client = api_client.clone();
@@ -244,39 +285,60 @@ impl Subtitles {
                     }
                 };
 
-                // Look through all media sources for external subtitles
-                let external_subtitles = playback_info
+                // The version being played (otherwise the first one).
+                let Some(source) = playback_info
                     .media_sources
                     .iter()
+                    .find(|source| {
+                        settings.media_source_id.is_some() && source.id == settings.media_source_id
+                    })
+                    .or_else(|| playback_info.media_sources.first())
                     .cloned()
-                    .filter_map(|media_source| media_source.media_streams)
-                    .flatten()
-                    .filter_map(|stream| {
-                        match (
-                            stream.is_text_subtitle_stream,
-                            stream.is_external,
-                            stream.delivery_url,
-                        ) {
-                            (Some(true), Some(true), Some(delivery_url)) => {
-                                let name = stream
-                                    .display_title
-                                    .or(stream.language)
-                                    .unwrap_or(tr!("vp-subtitle-track-external").to_owned());
+                else {
+                    return SubtitlesCommandOutput::ExternalSubtitlesLoaded(None);
+                };
+                let source_id = source
+                    .id
+                    .clone()
+                    .unwrap_or_else(|| item_id.simple().to_string());
+                let default_index = source.default_subtitle_stream_index;
 
+                let external_subtitles = source
+                    .media_streams
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter(|stream| stream.is_text_subtitle_stream == Some(true))
+                    .filter_map(|stream| {
+                        let url = match (stream.is_external, stream.delivery_url, stream.index) {
+                            (Some(true), Some(delivery_url), _) => {
                                 // Strip leading slash
                                 let delivery_url =
                                     delivery_url.strip_prefix('/').unwrap_or(&delivery_url);
-
-                                let url = api_client
+                                api_client
                                     .root
                                     .join(delivery_url)
                                     .expect("Error getting external subtitle track URL")
-                                    .to_string();
-
-                                Some(ExternalSubtitleTrack { name, url })
+                                    .to_string()
                             }
-                            _ => None,
-                        }
+                            (Some(true), None, _) => return None,
+                            (_, _, Some(index)) if transcoded => api_client.subtitle_url(
+                                &item_id,
+                                &source_id,
+                                index,
+                                stream.codec.as_deref(),
+                            ),
+                            _ => return None,
+                        };
+                        let name = stream
+                            .display_title
+                            .or(stream.language)
+                            .unwrap_or(tr!("vp-subtitle-track-external").to_owned());
+                        let is_default = stream.index.is_some() && stream.index == default_index;
+                        Some(ExternalSubtitleTrack {
+                            name,
+                            url,
+                            is_default,
+                        })
                     })
                     .collect();
 
