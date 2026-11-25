@@ -123,6 +123,10 @@ extern "C" {
     //=========================================================================
     pub fn vpm_video_player_mpv_get_type() -> GType;
     pub fn vpm_video_player_mpv_new() -> *mut gtk::GtkWidget;
+    pub fn vpm_video_player_mpv_command_string(
+        self_: *mut VpmVideoPlayerMpv,
+        command: *const c_char,
+    );
     pub fn vpm_video_player_mpv_add_subtitle_track(
         self_: *mut VpmVideoPlayerMpv,
         url: *const c_char,

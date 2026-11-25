@@ -34,6 +34,7 @@ pub struct VideoPlayerMenu {
     stream_url: Arc<RwLock<String>>,
     mpv_props_section_pos: Option<i32>,
     mpv_props: MpvProps,
+    video_player: Arc<RefCell<dyn VideoPlayerBackend>>,
 }
 
 #[derive(Debug)]
@@ -43,6 +44,7 @@ pub enum VideoPlayerMenuInput {
     DeinterlaceActiveUpdated(bool),
     SetStreamURL(String),
     ToggleDeinterlacing,
+    ToggleStats,
 }
 
 relm4::new_action_group!(VideoPlayerMenuGroup, "video_player_menu");
@@ -144,6 +146,7 @@ impl Component for VideoPlayerMenu {
             mpv_props_section_pos: None,
             stream_url: Arc::default(),
             mpv_props: MpvProps::default(),
+            video_player: video_player.clone(),
         };
 
         let widgets = view_output!();
@@ -247,6 +250,9 @@ impl Component for VideoPlayerMenu {
             }
             VideoPlayerMenuInput::SetStreamURL(stream_url) => {
                 *self.stream_url.write().expect("Failed to set stream URL") = stream_url;
+            }
+            VideoPlayerMenuInput::ToggleStats => {
+                with_backend_mpv(&self.video_player, |mpv| mpv.toggle_stats());
             }
             VideoPlayerMenuInput::ToggleDeinterlacing => {
                 let value = if self.mpv_props.deinterlace_active.unwrap_or_default() {

@@ -114,6 +114,12 @@ impl VideoPlayerBackendMpv {
         set_player_state!(self.state, self.player_state_changed_callbacks, state);
     }
 
+    /// Toggle mpv's statistics overlay (decoder, frame rate, dropped frames).
+    pub fn toggle_stats(&self) {
+        self.widget
+            .command_string("script-binding stats/display-stats-toggle");
+    }
+
     pub fn set_property_string(&self, name: &str, value: &str) {
         let res = self.widget.set_property_string(name, value);
         if res != 0 {

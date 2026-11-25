@@ -22,3 +22,4 @@ sc-gen-menu = Menü öffnen
 sc-lib-refresh = Neu laden
 sc-vp-playback-speed = Abspielgeschwindigkeit anpassen
 sc-vp-deinterlace = Deinterlacing umschalten
+sc-vp-stats = Wiedergabe-Statistik ein-/ausblenden

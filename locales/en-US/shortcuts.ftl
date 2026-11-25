@@ -22,3 +22,4 @@ sc-vp-fullscreen = Toggle fullscreen
 sc-vp-frame-step = Seek frame-by-frame
 sc-vp-playback-speed = Adjust playback speed
 sc-vp-deinterlace = Toggle deinterlacing
+sc-vp-stats = Show/hide playback statistics

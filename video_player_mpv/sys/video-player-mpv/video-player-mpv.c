@@ -438,6 +438,11 @@ void vpm_video_player_mpv_play_uri(VpmVideoPlayerMpv *self, const char *uri) {
   mpv_command(self->mpv_ctx->handle, cmd);
 }
 
+void vpm_video_player_mpv_command_string(VpmVideoPlayerMpv *self,
+                                         const char *command) {
+  mpv_command_string(self->mpv_ctx->handle, command);
+}
+
 void vpm_video_player_mpv_play(VpmVideoPlayerMpv *self) {
   int val = FALSE;
   mpv_set_property(self->mpv_ctx->handle, "pause", MPV_FORMAT_FLAG, &val);

@@ -109,6 +109,12 @@
                 <property name="title">{{ tr(key="sc-vp-deinterlace") }}</property>
               </object>
             </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="accelerator">i</property>
+                <property name="title">{{ tr(key="sc-vp-stats") }}</property>
+              </object>
+            </child>
           </object>
         </child>
       </object>

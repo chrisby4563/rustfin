@@ -62,6 +62,9 @@ pub fn keybindings_controller() -> EventControllerKey {
             gdk::Key::greater => {
                 PLAYBACK_SPEED_BROKER.send(PlaybackSpeedInput::SpeedUp);
             }
+            gdk::Key::i => {
+                VIDEO_PLAYER_MENU_BROKER.send(VideoPlayerMenuInput::ToggleStats);
+            }
             gdk::Key::d => {
                 VIDEO_PLAYER_MENU_BROKER.send(VideoPlayerMenuInput::ToggleDeinterlacing);
             }

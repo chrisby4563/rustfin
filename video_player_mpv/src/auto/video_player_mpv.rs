@@ -40,6 +40,16 @@ impl VideoPlayerMpv {
         }
     }
 
+    #[doc(alias = "vpm_video_player_mpv_command_string")]
+    pub fn command_string(&self, command: &str) {
+        unsafe {
+            ffi::vpm_video_player_mpv_command_string(
+                self.to_glib_none().0,
+                command.to_glib_none().0,
+            );
+        }
+    }
+
     #[doc(alias = "vpm_video_player_mpv_current_audio_track")]
     pub fn current_audio_track(&self) -> i32 {
         unsafe { ffi::vpm_video_player_mpv_current_audio_track(self.to_glib_none().0) }
