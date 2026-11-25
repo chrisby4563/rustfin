@@ -7,6 +7,10 @@
 # Needed packages (pacman -S --needed):
 #   git zip mingw-w64-ucrt-x86_64-{toolchain,rust,meson,ninja,pkgconf,gtk4,
 #   libadwaita,mpv,libepoxy,nsis,adwaita-icon-theme,librsvg,ntldd}
+#
+# GTK: build and install the patched package in packaging/windows/gtk4 first
+# (even HiDPI scaling at 150-249 %, like on Linux), then keep pacman from
+# replacing it: IgnorePkg = mingw-w64-ucrt-x86_64-gtk4 in /etc/pacman.conf.
 set -euo pipefail
 
 [[ "${MSYSTEM:-}" == "UCRT64" ]] || { echo "Run this in an MSYS2 UCRT64 shell" >&2; exit 1; }
@@ -29,6 +33,8 @@ mkdir -p "$STAGE/bin" "$STAGE/share/rustfin"
 cp "$BUILD/delfin/rustfin" "$STAGE/bin/rustfin.exe" 2>/dev/null \
   || cp "$BUILD/delfin/release/rustfin.exe" "$STAGE/bin/rustfin.exe"
 cp "$BUILD/data/resources.gresource" "$STAGE/share/rustfin/"
+# Colors of the Linux version (Omarchy theme); see main.rs `theme_file`.
+cp "$WIN/theme.css" "$STAGE/share/rustfin/"
 
 # All DLLs from the MSYS2 prefix that the app (and its plugins) need.
 copy_deps() {

@@ -1,0 +1,113 @@
+# Copy of MSYS2 MINGW-packages/mingw-w64-gtk4 with one Rustfin change (see prepare()).
+# Build in an MSYS2 UCRT64 shell: makepkg-mingw -sCf --noconfirm --nocheck
+# Maintainer: Christoph Reiter <reiter.christoph@gmail.com>
+
+_realname=gtk4
+pkgbase="mingw-w64-${_realname}"
+pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
+pkgver=4.24.2
+pkgrel=1.1  # rustfin: rounded HiDPI scale, see prepare()
+pkgdesc="GObject-based multi-platform GUI toolkit (v4) (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64' 'clang64' 'clangarm64')
+url="https://www.gtk.org"
+msys2_repository_url="https://gitlab.gnome.org/GNOME/gtk/"
+msys2_references=(
+  'anitya: 13942'
+  'gentoo: gui-libs/gtk'
+  "cpe: cpe:/a:gnome:gtk"
+  "cpe: cpe:/a:gtk:gtk%2b"
+)
+license=('spdx:LGPL-2.1-or-later')
+depends=(
+  "${MINGW_PACKAGE_PREFIX}-adwaita-icon-theme"
+  "${MINGW_PACKAGE_PREFIX}-cairo"
+  "${MINGW_PACKAGE_PREFIX}-cc-libs"
+  "${MINGW_PACKAGE_PREFIX}-gdk-pixbuf2"
+  "${MINGW_PACKAGE_PREFIX}-glib2"
+  "${MINGW_PACKAGE_PREFIX}-graphene"
+  "${MINGW_PACKAGE_PREFIX}-gst-plugins-bad-libs"
+  "${MINGW_PACKAGE_PREFIX}-gtk-update-icon-cache"
+  "${MINGW_PACKAGE_PREFIX}-json-glib"
+  "${MINGW_PACKAGE_PREFIX}-libepoxy"
+  "${MINGW_PACKAGE_PREFIX}-pango"
+  "${MINGW_PACKAGE_PREFIX}-shared-mime-info"
+  "${MINGW_PACKAGE_PREFIX}-vulkan-loader"
+)
+makedepends=(
+  "${MINGW_PACKAGE_PREFIX}-cc"
+  "${MINGW_PACKAGE_PREFIX}-gi-docgen"
+  "${MINGW_PACKAGE_PREFIX}-gobject-introspection"
+  "${MINGW_PACKAGE_PREFIX}-meson"
+  "${MINGW_PACKAGE_PREFIX}-pkgconf"
+  "${MINGW_PACKAGE_PREFIX}-python-docutils"
+  "${MINGW_PACKAGE_PREFIX}-sassc"
+  "${MINGW_PACKAGE_PREFIX}-shaderc"
+  "${MINGW_PACKAGE_PREFIX}-vulkan-headers"
+)
+optdepends=(
+  "${MINGW_PACKAGE_PREFIX}-gst-plugins-good: plugins required in gtk4-widget-factory"
+)
+conflicts=("${MINGW_PACKAGE_PREFIX}-gtk4-media-gstreamer")
+provides=("${MINGW_PACKAGE_PREFIX}-gtk4-media-gstreamer")
+replaces=("${MINGW_PACKAGE_PREFIX}-gtk4-media-gstreamer")
+source=(
+  "https://download.gnome.org/sources/gtk/${pkgver:0:4}/gtk-${pkgver}.tar.xz"
+  "001-fix-font-rendering.patch"
+)
+sha256sums=('05561abc25d1b1400136bf79ab68830cb4b053d1922ae97e551b3f19755bf3cb'
+            'ebac78616a7668edbfdd77b9959ad63239aa59ed12b995a9663bf2df7158be26')
+
+prepare() {
+  cd gtk-${pkgver}
+
+  # Re-enables font hinting
+  patch -Np1 -i ../001-fix-font-rendering.patch
+
+  # Rustfin: GTK uses an integer scale on Windows and truncates it, so 125-175 %
+  # displays get scale 1 and only the text is enlarged (icons, spacing and images
+  # stay at 100 %). Round instead: 150-249 % -> 2. Text DPI is divided by the
+  # scale, so text keeps its exact size and everything else scales evenly.
+  local f=gdk/win32/gdkdisplay-win32.c
+  grep -q 'return dpix / USER_DEFAULT_SCREEN_DPI > 1 ? dpix / USER_DEFAULT_SCREEN_DPI : 1;' $f
+  sed -i 's|return dpix / USER_DEFAULT_SCREEN_DPI > 1 ? dpix / USER_DEFAULT_SCREEN_DPI : 1;|return (dpix + USER_DEFAULT_SCREEN_DPI / 2) / USER_DEFAULT_SCREEN_DPI > 1 ? (dpix + USER_DEFAULT_SCREEN_DPI / 2) / USER_DEFAULT_SCREEN_DPI : 1;|' $f
+  grep -q 'dpix + USER_DEFAULT_SCREEN_DPI / 2' $f
+}
+
+build() {
+  mkdir -p build-${MSYSTEM} && cd build-${MSYSTEM}
+
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("--buildtype=release")
+  else
+    extra_config+=("--buildtype=debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="--prefix=" \
+    meson setup \
+    --prefix="${MINGW_PREFIX}" \
+    --wrap-mode=nodownload \
+    --auto-features=enabled \
+    "${extra_config[@]}" \
+    -Dbuild-examples=false \
+    -Dbuild-tests=false \
+    -Dbuild-testsuite=false \
+    -Dman-pages=true \
+    -Dmacos-backend=false \
+    -Dmedia-gstreamer=enabled \
+    -Dvulkan=enabled \
+    -Dx11-backend=false \
+    -Dwayland-backend=false \
+    -Dwin32-backend=true \
+    -Dintrospection=enabled \
+    ../gtk-${pkgver}
+
+  meson compile
+}
+
+package() {
+  meson install -C "${srcdir}/build-${MSYSTEM}" --destdir "${pkgdir}"
+
+  install -Dm644 "${srcdir}/gtk-${pkgver}/COPYING" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING"
+}

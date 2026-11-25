@@ -58,7 +58,10 @@ fn main() {
     load_css(&app);
     follow_desktop_theme();
     #[cfg(windows)]
-    rustfin::utils::win32::center_dialogs_on_parent();
+    {
+        rustfin::utils::win32::apply_linux_look();
+        rustfin::utils::win32::center_dialogs_on_parent();
+    }
     app.with_broker(&APP_BROKER).run::<App>(());
     rustfin::syncplay::leave_on_exit();
 }
@@ -105,10 +108,15 @@ fn load_css<T: Debug>(app: &RelmApp<T>) {
 /// reload it on every change so the colors update immediately.
 /// mitwechseln.
 fn follow_desktop_theme() {
-    let path = glib::user_config_dir().join("gtk-4.0/omarchy-theme.css");
+    let path = theme_file();
     let Some(display) = gdk::Display::default() else {
         return;
     };
+    // The theme colors are dark; on Linux Omarchy requests dark mode itself.
+    #[cfg(windows)]
+    if path.exists() {
+        relm4::adw::StyleManager::default().set_color_scheme(relm4::adw::ColorScheme::ForceDark);
+    }
 
     let provider = gtk::CssProvider::new();
     if path.exists() {
@@ -140,6 +148,23 @@ fn follow_desktop_theme() {
     });
     // Monitoring runs for the lifetime of the program.
     std::mem::forget(monitor);
+}
+
+#[cfg(not(windows))]
+fn theme_file() -> PathBuf {
+    glib::user_config_dir().join("gtk-4.0/omarchy-theme.css")
+}
+
+/// Windows: the user's `%APPDATA%\rustfin\theme.css`, otherwise the colors of
+/// the Linux version shipped with the installer.
+#[cfg(windows)]
+fn theme_file() -> PathBuf {
+    let own = std::env::var_os("APPDATA")
+        .map(|appdata| PathBuf::from(appdata).join("rustfin").join("theme.css"));
+    match own {
+        Some(own) if own.exists() => own,
+        _ => resources_file().with_file_name("theme.css"),
+    }
 }
 
 /// On Windows the installation can live anywhere, so the resources are looked

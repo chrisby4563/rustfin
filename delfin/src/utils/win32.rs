@@ -346,11 +346,17 @@ pub mod mini_player {
     }
 }
 
-/// GTK on Windows renders with an integer scale (1 at 125–175 %) and only
-/// enlarges the text to the system DPI. Sizes stored in logical pixels
-/// (window size) are multiplied by this factor so that the window has the same
-/// room for its (larger) text as on Linux.
+/// GTK on Windows renders with an integer scale and makes up the rest of the
+/// system scaling with the text DPI (stock GTK: scale 1 at 125–175 %, text
+/// enlarged; Rustfin's patched GTK: scale 2 from 150 %, text reduced). Window
+/// sizes stored in logical pixels are multiplied by this factor so that the
+/// window has the same room for its text as on Linux.
 pub fn text_scale() -> f64 {
+    // With the patched GTK (scale 2 from 150 %) the logical size already
+    // matches Linux; the text DPI is set by `apply_linux_look`.
+    if monitor_scale() >= 2 {
+        return 1.0;
+    }
     let dpi = gtk::Settings::default()
         .map(|settings| settings.gtk_xft_dpi())
         .unwrap_or(-1);
@@ -358,4 +364,57 @@ pub fn text_scale() -> f64 {
         return 1.0;
     }
     (f64::from(dpi) / 1024.0 / 96.0).clamp(1.0, 4.0)
+}
+
+/// GTK's integer scale of the primary monitor.
+fn monitor_scale() -> i32 {
+    gdk::Display::default()
+        .and_then(|display| display.monitors().item(0))
+        .and_downcast::<gdk::Monitor>()
+        .map(|monitor| monitor.scale_factor())
+        .unwrap_or(1)
+}
+
+// ---------------------------------------------------------------------------
+// Look of the Linux version
+
+/// Text size relative to icons and spacing on the Linux machines (GNOME text
+/// scaling factor there).
+const LINUX_TEXT_SCALE: f64 = 1.18;
+
+/// The design asks for Inter / Space Grotesk; where they are missing (as on the
+/// Linux machines) GTK falls back to Liberation Sans. Arial has the same metrics
+/// and ships with Windows, whose own "sans-serif" fallback is much wider.
+const FONT_CSS: &str = r#"
+window { font-family: "Inter", "Liberation Sans", "Arial", sans-serif; }
+.header-brand, .home-hero-title, .media-details-header-title,
+.title-1, .title-2, .title-3, .settings-heading {
+  font-family: "Space Grotesk", "Inter", "Liberation Sans", "Arial", sans-serif;
+}
+"#;
+
+/// Same fonts and text proportions as on Linux.
+pub fn apply_linux_look() {
+    let Some(settings) = gtk::Settings::default() else {
+        return;
+    };
+    // Linux: "Adwaita Sans 11" (Windows default: "Segoe UI 9").
+    settings.set_gtk_font_name(Some("Arial 11"));
+
+    if let Some(display) = gdk::Display::default() {
+        let provider = gtk::CssProvider::new();
+        provider.load_from_string(FONT_CSS);
+        gtk::style_context_add_provider_for_display(
+            &display,
+            &provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION + 1,
+        );
+    }
+
+    // With real HiDPI scaling (Rustfin's GTK: scale 2 from 150 %) GTK shrinks the
+    // text DPI to the remainder; use Linux's proportions instead. At scale 1 GTK
+    // already enlarges the text to the system DPI.
+    if monitor_scale() >= 2 {
+        settings.set_gtk_xft_dpi((96.0 * LINUX_TEXT_SCALE * 1024.0) as i32);
+    }
 }
