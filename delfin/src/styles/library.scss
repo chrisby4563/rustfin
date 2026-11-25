@@ -227,5 +227,8 @@ button.library-pill {
   100% { background-color: unquote("alpha(@window_fg_color, 0.05)"); }
 }
 .skeleton {
-  animation: skeleton-pulse 1.4s ease-in-out infinite;
+  // Not forever: a tile whose image never comes (none on the server) would
+  // otherwise make GTK redraw the window all the time (2+ CPU cores with
+  // software rendering).
+  animation: skeleton-pulse 1.4s ease-in-out 5;
 }

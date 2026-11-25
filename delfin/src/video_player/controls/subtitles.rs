@@ -29,13 +29,26 @@ relm4::new_stateful_action!(
     Option<i32>
 );
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ExternalSubtitleTrack {
     name: String,
     url: String,
     /// Jellyfin's default subtitle for this user (language/mode preferences).
     is_default: bool,
 }
+
+impl std::fmt::Debug for ExternalSubtitleTrack {
+    // Without the URL (it carries the access token).
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExternalSubtitleTrack")
+            .field("name", &self.name)
+            .field("is_default", &self.is_default)
+            .finish()
+    }
+}
+
+/// Wait this long before telling that the subtitles take a while.
+const SLOW_HINT_AFTER: std::time::Duration = std::time::Duration::from_secs(3);
 
 #[derive(Debug)]
 pub struct Subtitles {
@@ -46,8 +59,15 @@ pub struct Subtitles {
     /// Subtitles loaded separately from the stream (external files, and
     /// embedded text subtitles while the server converts the video).
     external: Vec<ExternalSubtitleTrack>,
-    /// `external` still has to be added to the current stream.
-    external_pending: bool,
+    /// How many of `external` were added to the current stream.
+    external_added: usize,
+    /// Separate subtitles still downloading. The first time, the server has
+    /// to read the whole video file for them (minutes for large files).
+    loading: usize,
+    /// Ignore downloads that belong to a previous title.
+    generation: u64,
+    /// The subtitle tracks of the current stream (from mpv).
+    tracks: Vec<SubtitleTrack>,
     /// The current stream is loaded; mpv only accepts `sub-add` then.
     stream_ready: bool,
 }
@@ -67,7 +87,14 @@ pub enum SubtitlesInput {
 
 #[derive(Debug)]
 pub enum SubtitlesCommandOutput {
-    ExternalSubtitlesLoaded(Option<Vec<ExternalSubtitleTrack>>),
+    /// This many separate subtitles are being downloaded.
+    ExternalSubtitlesFound { generation: u64, count: usize },
+    /// One download finished (`None`: failed).
+    ExternalSubtitleLoaded {
+        generation: u64,
+        track: Option<ExternalSubtitleTrack>,
+    },
+    SlowHint { generation: u64 },
 }
 
 #[relm4::component(pub)]
@@ -89,9 +116,9 @@ impl Component for Subtitles {
                 {"subtitlesAvailable" => model.subtitles_available.to_string()},
             )),
             #[watch]
-            set_sensitive: model.subtitles_available,
+            set_sensitive: model.subtitles_available || model.loading > 0,
             #[watch]
-            set_has_tooltip: !model.subtitles_available,
+            set_has_tooltip: !model.subtitles_available && model.loading == 0,
         }
     }
 
@@ -106,7 +133,10 @@ impl Component for Subtitles {
             subtitles_available: false,
             previous_track: None,
             external: Vec::new(),
-            external_pending: false,
+            external_added: 0,
+            loading: 0,
+            generation: 0,
+            tracks: Vec::new(),
             stream_ready: false,
         };
 
@@ -149,13 +179,22 @@ impl Component for Subtitles {
                 self.subtitles_available = false;
                 self.previous_track = None;
                 self.external.clear();
-                self.external_pending = false;
+                self.external_added = 0;
+                self.loading = 0;
+                self.generation += 1;
+                self.tracks.clear();
                 self.stream_ready = false;
-                Subtitles::load_external_subtitles(&sender, &api_client, &item);
+                self.rebuild_menu();
+                Subtitles::load_external_subtitles(
+                    &sender,
+                    &api_client,
+                    &item,
+                    self.generation,
+                );
             }
             SubtitlesInput::StreamReloaded => {
                 self.stream_ready = false;
-                self.external_pending = !self.external.is_empty();
+                self.external_added = 0;
             }
             SubtitlesInput::SubtitlesUpdated(subtitle_streams) => {
                 // Only sent while a stream is loaded.
@@ -166,28 +205,8 @@ impl Component for Subtitles {
                 }
 
                 self.subtitles_available = true;
-
-                // Build updated subtitle tracks menu
-                let subs_menu = gio::Menu::new();
-                subtitle_streams
-                    .iter()
-                    .map(|subtitle_stream| {
-                        RelmAction::<SelectedSubtitleAction>::to_menu_item_with_target_value(
-                            &subtitle_stream.name,
-                            &Some(subtitle_stream.id as i32),
-                        )
-                    })
-                    .for_each(|menu_item| subs_menu.append_item(&menu_item));
-                subs_menu.append_item(
-                    &RelmAction::<SelectedSubtitleAction>::to_menu_item_with_target_value(
-                        tr!("vp-subtitle-track-off"),
-                        &None,
-                    ),
-                );
-
-                self.menu.remove_all();
-                self.menu
-                    .append_section(Some(tr!("vp-subtitle-track-menu")), &subs_menu);
+                self.tracks = subtitle_streams;
+                self.rebuild_menu();
 
                 // Select current subtitle track in menu
                 if let Some(current_subtitle_track) =
@@ -205,6 +224,10 @@ impl Component for Subtitles {
                 }
             }
             SubtitlesInput::ToggleSubtitles => 'msg_block: {
+                if !self.subtitles_available && self.loading > 0 {
+                    APP_BROKER.send(AppInput::Toast(tr!("vp-subtitles-preparing").into(), None));
+                    break 'msg_block;
+                }
                 if !self.subtitles_available {
                     APP_BROKER.send(AppInput::Toast(
                         tr!("vp-no-subtitles-available").into(),
@@ -231,20 +254,38 @@ impl Component for Subtitles {
         self.update_view(widgets, sender);
     }
 
-    fn update_cmd(
+    fn update_cmd_with_view(
         &mut self,
+        widgets: &mut Self::Widgets,
         message: Self::CommandOutput,
-        _sender: ComponentSender<Self>,
+        sender: ComponentSender<Self>,
         _root: &Self::Root,
     ) {
         match message {
-            SubtitlesCommandOutput::ExternalSubtitlesLoaded(Some(external_subtitles)) => {
-                self.external = external_subtitles;
-                self.external_pending = !self.external.is_empty();
-                self.add_pending_external();
+            SubtitlesCommandOutput::ExternalSubtitlesFound { generation, count }
+                if generation == self.generation =>
+            {
+                self.loading = count;
+                self.rebuild_menu();
             }
-            SubtitlesCommandOutput::ExternalSubtitlesLoaded(None) => {}
+            SubtitlesCommandOutput::ExternalSubtitleLoaded { generation, track }
+                if generation == self.generation =>
+            {
+                self.loading = self.loading.saturating_sub(1);
+                if let Some(track) = track {
+                    self.external.push(track);
+                    self.add_pending_external();
+                }
+                self.rebuild_menu();
+            }
+            SubtitlesCommandOutput::SlowHint { generation }
+                if generation == self.generation && self.loading > 0 =>
+            {
+                APP_BROKER.send(AppInput::Toast(tr!("vp-subtitles-preparing").into(), None));
+            }
+            _ => {}
         }
+        self.update_view(widgets, sender);
     }
 }
 
@@ -252,14 +293,44 @@ impl Subtitles {
     /// Add `external` to the stream once it is loaded (mpv rejects `sub-add`
     /// before that, and drops added tracks when a new stream starts).
     fn add_pending_external(&mut self) {
-        if !self.external_pending || !self.stream_ready {
+        if !self.stream_ready {
             return;
         }
-        self.external_pending = false;
-        for sub in &self.external {
+        for sub in &self.external[self.external_added..] {
             self.video_player
                 .borrow()
                 .add_subtitle_track(&sub.url, &sub.name, sub.is_default);
+        }
+        self.external_added = self.external.len();
+    }
+
+    /// Tracks of the stream, "Off", and a note while subtitles still load.
+    fn rebuild_menu(&self) {
+        self.menu.remove_all();
+        if !self.tracks.is_empty() {
+            let subs_menu = gio::Menu::new();
+            for track in &self.tracks {
+                subs_menu.append_item(
+                    &RelmAction::<SelectedSubtitleAction>::to_menu_item_with_target_value(
+                        &track.name,
+                        &Some(track.id as i32),
+                    ),
+                );
+            }
+            subs_menu.append_item(
+                &RelmAction::<SelectedSubtitleAction>::to_menu_item_with_target_value(
+                    tr!("vp-subtitle-track-off"),
+                    &None,
+                ),
+            );
+            self.menu
+                .append_section(Some(tr!("vp-subtitle-track-menu")), &subs_menu);
+        }
+        if self.loading > 0 {
+            // No action: shown greyed out.
+            let note = gio::Menu::new();
+            note.append(Some(tr!("vp-subtitles-preparing")), Some("subtitle_actions.loading"));
+            self.menu.append_section(None, &note);
         }
     }
 
@@ -267,6 +338,7 @@ impl Subtitles {
         sender: &ComponentSender<Self>,
         api_client: &Arc<ApiClient>,
         item: &BaseItemDto,
+        generation: u64,
     ) {
         let Some(item_id) = item.id else { return };
         let settings = crate::globals::STREAM_SETTINGS.read().clone();
@@ -274,14 +346,67 @@ impl Subtitles {
         // subtitles separately, as Jellyfin's web player does.
         let transcoded = ApiClient::is_transcoded(item, &settings);
 
-        sender.oneshot_command({
-            let api_client = api_client.clone();
-            async move {
+        let api_client = api_client.clone();
+        sender.command(move |out, shutdown| {
+            shutdown
+                .register(async move {
+                    let Some(found) =
+                        Self::find_external_subtitles(&api_client, item_id, settings, transcoded)
+                            .await
+                    else {
+                        return;
+                    };
+                    let _ = out.send(SubtitlesCommandOutput::ExternalSubtitlesFound {
+                        generation,
+                        count: found.len(),
+                    });
+                    if found.is_empty() {
+                        return;
+                    }
+                    relm4::spawn({
+                        let out = out.clone();
+                        async move {
+                            relm4::tokio::time::sleep(SLOW_HINT_AFTER).await;
+                            let _ = out.send(SubtitlesCommandOutput::SlowHint { generation });
+                        }
+                    });
+                    // Fetched here first so the player knows when they are
+                    // ready (mpv's own download reports nothing); mpv then
+                    // gets them from the server's cache right away. One after
+                    // the other: the server extracts all of a file's
+                    // subtitles in the first request anyway.
+                    for track in found {
+                        let track = match fetch(&api_client, &track.url).await {
+                            Ok(()) => Some(track),
+                            Err(err) => {
+                                warn!("Error loading subtitle {}: {err}", track.name);
+                                None
+                            }
+                        };
+                        let _ = out.send(SubtitlesCommandOutput::ExternalSubtitleLoaded {
+                            generation,
+                            track,
+                        });
+                    }
+                })
+                .drop_on_shutdown()
+        });
+    }
+
+    /// The separately loaded subtitles of the version being played (URLs).
+    async fn find_external_subtitles(
+        api_client: &ApiClient,
+        item_id: uuid::Uuid,
+        settings: crate::jellyfin_api::api::item::StreamSettings,
+        transcoded: bool,
+    ) -> Option<Vec<ExternalSubtitleTrack>> {
+        {
+            {
                 let playback_info = match api_client.get_playback_info(&item_id).await {
                     Ok(playback_info) => playback_info,
                     Err(err) => {
                         warn!("Error getting playback info: {err}");
-                        return SubtitlesCommandOutput::ExternalSubtitlesLoaded(None);
+                        return None;
                     }
                 };
 
@@ -295,7 +420,7 @@ impl Subtitles {
                     .or_else(|| playback_info.media_sources.first())
                     .cloned()
                 else {
-                    return SubtitlesCommandOutput::ExternalSubtitlesLoaded(None);
+                    return None;
                 };
                 let source_id = source
                     .id
@@ -342,8 +467,14 @@ impl Subtitles {
                     })
                     .collect();
 
-                SubtitlesCommandOutput::ExternalSubtitlesLoaded(Some(external_subtitles))
+                Some(external_subtitles)
             }
-        });
+        }
     }
+}
+
+async fn fetch(api_client: &ApiClient, url: &str) -> anyhow::Result<()> {
+    let response = api_client.client.get(url).send().await?.error_for_status()?;
+    response.bytes().await?;
+    Ok(())
 }

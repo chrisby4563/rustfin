@@ -66,6 +66,8 @@ LangString SecApp ${LANG_ENGLISH} "Rustfin"
 LangString SecDesktop ${LANG_GERMAN} "Desktop-Verknüpfung"
 LangString SecDesktop ${LANG_ENGLISH} "Desktop shortcut"
 LangString AppRunning ${LANG_GERMAN} "Rustfin läuft noch. Bitte schließe Rustfin und klicke auf OK."
+LangString WarmUp ${LANG_GERMAN} "Rustfin wird für den ersten Start vorbereitet …"
+LangString WarmUp ${LANG_ENGLISH} "Preparing Rustfin for its first start …"
 LangString AppRunning ${LANG_ENGLISH} "Rustfin is still running. Please close it and click OK."
 
 Function .onInit
@@ -94,6 +96,12 @@ Section "$(SecApp)" SecMain
 
   SetOutPath "$INSTDIR"
   File /r "${STAGE}\*.*"
+
+  ; Start once without a window: Windows checks the new DLLs now (~15 s on
+  ; the first start otherwise).
+  DetailPrint "$(WarmUp)"
+  nsExec::Exec '"$INSTDIR\bin\rustfin.exe" --warm-up'
+  Pop $0
 
   WriteUninstaller "$INSTDIR\uninstall.exe"
   WriteRegStr HKCU "Software\${APPNAME}" "InstallDir" "$INSTDIR"

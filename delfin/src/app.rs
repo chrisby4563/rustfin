@@ -326,7 +326,7 @@ impl Component for App {
                     self.collection = Some(collection);
                 }
             }
-            AppInput::PlayVideo(mut item) => {
+            AppInput::PlayVideo(item) => {
                 // Before playing, complete the item (once):
                 // - a season or series has no video of its own (server: 400, player
                 //   stays black) → its next episode, as the home tiles do;

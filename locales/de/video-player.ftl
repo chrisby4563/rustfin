@@ -122,3 +122,4 @@ vp-menu-debug-copy-stream-url-toast =
     .success = Stream-Adresse in die Zwischenablage kopiert
     .fail = Stream-Adresse konnte nicht kopiert werden
 vp-menu-debug-mpv-props = MPV-Eigenschaften
+vp-subtitles-preparing = Untertitel werden vorbereitet …

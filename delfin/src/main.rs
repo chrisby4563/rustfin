@@ -13,6 +13,13 @@ use relm4::{gtk, RelmApp};
 use tracing::log::LevelFilter;
 
 fn main() {
+    let started = std::time::Instant::now();
+    // Run by the installer: Windows loads (and Defender checks) all of the
+    // ~160 DLLs once now instead of on the first real start (~16 s).
+    #[cfg(windows)]
+    if std::env::args().any(|arg| arg == "--warm-up") {
+        return;
+    }
     // Before anything else (the log file is recreated on every start).
     #[cfg(windows)]
     if !rustfin::utils::win32::claim_single_instance(APP_ID) {
@@ -34,7 +41,7 @@ fn main() {
             writeln!(
                 buf,
                 "[{} {:<5} {}] {}",
-                buf.timestamp(),
+                buf.timestamp_millis(),
                 record.level(),
                 record.target(),
                 rustfin::utils::redact::redact(&record.args().to_string())
@@ -48,6 +55,7 @@ fn main() {
         video_player_gst::init_gst();
     }
 
+    tracing::info!("startup: logging after {} ms", started.elapsed().as_millis());
     load_resources().expect("Error loading resources");
 
     let app = RelmApp::new(APP_ID);
@@ -62,6 +70,10 @@ fn main() {
         rustfin::utils::win32::apply_linux_look();
         rustfin::utils::win32::center_dialogs_on_parent();
     }
+    tracing::info!("startup: GTK ready after {} ms", started.elapsed().as_millis());
+    relm4::main_application().connect_window_added(move |_, _| {
+        tracing::info!("startup: window after {} ms", started.elapsed().as_millis());
+    });
     app.with_broker(&APP_BROKER).run::<App>(());
     rustfin::syncplay::leave_on_exit();
 }
