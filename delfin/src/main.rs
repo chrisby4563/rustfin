@@ -13,6 +13,18 @@ use relm4::{gtk, RelmApp};
 use tracing::log::LevelFilter;
 
 fn main() {
+    // Before anything else (the log file is recreated on every start).
+    #[cfg(windows)]
+    if !rustfin::utils::win32::claim_single_instance(APP_ID) {
+        return;
+    }
+    // Windows has no session bus; GLib would start its own (`gdbus.exe`) that
+    // keeps running after Rustfin is closed. Nothing here needs it.
+    #[cfg(windows)]
+    if std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_none() {
+        std::env::set_var("DBUS_SESSION_BUS_ADDRESS", "disabled:");
+    }
+
     // Log lines never contain access tokens (stream URLs carry `ApiKey=`).
     env_logger::builder()
         .filter_level(LevelFilter::Warn)
@@ -39,6 +51,9 @@ fn main() {
     load_resources().expect("Error loading resources");
 
     let app = RelmApp::new(APP_ID);
+    // Uniqueness is handled by `claim_single_instance` (no session bus).
+    #[cfg(windows)]
+    relm4::main_application().set_flags(gio::ApplicationFlags::NON_UNIQUE);
     relm4_icons::initialize_icons();
     load_css(&app);
     follow_desktop_theme();

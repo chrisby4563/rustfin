@@ -1,4 +1,4 @@
-//! Mini-player button (visible only under Hyprland).
+//! Mini-player button (visible under Hyprland and on Windows).
 
 use gtk::prelude::*;
 use relm4::prelude::*;

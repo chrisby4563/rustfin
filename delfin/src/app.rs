@@ -104,14 +104,15 @@ impl Component for App {
             set_widget_name: MAIN_APP_WINDOW_NAME,
             set_title: Some(tr!("app-name")),
 
-            set_default_width: config.window.width as i32,
-            set_default_height: config.window.height as i32,
+            set_default_width: (config.window.width as f64 * crate::utils::window_size_scale()) as i32,
+            set_default_height: (config.window.height as f64 * crate::utils::window_size_scale()) as i32,
             set_maximized: config.window.maximized,
 
             connect_close_request => move |window| {
                 let mut config = CONFIG.write();
-                config.window.width = window.width() as usize;
-                config.window.height = window.height() as usize;
+                let scale = crate::utils::window_size_scale();
+                config.window.width = (f64::from(window.width()) / scale).round() as usize;
+                config.window.height = (f64::from(window.height()) / scale).round() as usize;
                 config.window.maximized = window.is_maximized();
                 if let Err(err) = config.save() {
                     tracing::error!("Failed to save window state: {err}");

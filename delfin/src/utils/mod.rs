@@ -20,3 +20,11 @@ pub mod fade;
 pub mod redact;
 #[cfg(windows)]
 pub mod win32;
+
+/// Factor for stored window sizes (see `win32::text_scale`); 1 elsewhere.
+pub fn window_size_scale() -> f64 {
+    #[cfg(windows)]
+    return win32::text_scale();
+    #[cfg(not(windows))]
+    return 1.0;
+}
