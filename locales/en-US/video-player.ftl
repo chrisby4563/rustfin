@@ -50,6 +50,7 @@ vp-subtitle-track-menu = Subtitle Track
 vp-subtitle-track-external = External Subtitle Track
 vp-subtitle-track-off = Off
 vp-no-subtitles-available = No subtitles available.
+vp-volume-tooltip = Volume: { $percent }%
 vp-volume-mute-tooltip =
     { $muted ->
         [true] Unmute

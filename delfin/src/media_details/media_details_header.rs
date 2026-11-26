@@ -327,7 +327,10 @@ impl AsyncComponent for MediaDetailsHeader {
             0.0
         };
 
-        if let Ok(poster_url) = model.api_client.get_parent_or_item_primary_image_url(&model.item) {
+        if let Ok(poster_url) = model.api_client.get_parent_or_item_primary_image_url(
+            &model.item,
+            crate::utils::pixel_scale::scaled(160, crate::utils::pixel_scale::pixel_scale()),
+        ) {
             sender.oneshot_command(async move {
                 let bytes: VecDeque<u8> = match reqwest::get(poster_url).await {
                     Ok(response) => response.bytes().await.map(|b| b.into_iter().collect()).unwrap_or_default(),

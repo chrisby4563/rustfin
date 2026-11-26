@@ -366,18 +366,16 @@ impl SimpleComponent for VideoPlayerControls {
 }
 
 /// In narrow windows the row is wider than the window and the right-hand
-/// buttons are cut off. Then hide the volume slider (the mute button stays)
-/// and the label of the “Together” button (its icon stays); show them again
-/// once there is room.
+/// buttons are cut off. Then hide the label of the “Together” button (its
+/// icon stays); show it again once there is room.
 fn fit_to_width(row: &gtk::Box) {
     let optional: Vec<gtk::Widget> = descendants(row.upcast_ref())
         .into_iter()
         .filter(|widget| {
-            widget.is::<gtk::Scale>()
-                || (widget.is::<gtk::Label>()
-                    && widget
-                        .ancestor(gtk::MenuButton::static_type())
-                        .is_some_and(|button| button.has_css_class("header-pill")))
+            widget.is::<gtk::Label>()
+                && widget
+                    .ancestor(gtk::MenuButton::static_type())
+                    .is_some_and(|button| button.has_css_class("header-pill"))
         })
         .collect();
     if optional.is_empty() {

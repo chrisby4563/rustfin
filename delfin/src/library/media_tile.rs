@@ -281,10 +281,11 @@ impl AsyncComponent for MediaTile {
             move |_| menu.unparent()
         });
 
+        let scale = crate::utils::pixel_scale::pixel_scale();
         sender.oneshot_command({
             let media = model.media.clone();
             async move {
-                let thumbnail = get_thumbnail(api_client, &media, &tile_display).await;
+                let thumbnail = get_thumbnail(api_client, &media, &tile_display, scale).await;
                 MediaTileCommandOutput::ThumbnailLoaded(thumbnail)
             }
         });
@@ -549,23 +550,26 @@ async fn get_thumbnail(
     api_client: Arc<ApiClient>,
     media: &BaseItemDto,
     tile_display: &MediaTileDisplay,
+    scale: f64,
 ) -> Option<gdk::Texture> {
+    use crate::utils::pixel_scale::scaled;
+    // In screen pixels, so the image is as sharp as the tile.
+    let height = scaled(tile_display.height(), scale);
     let img_url = match tile_display {
         MediaTileDisplay::Wide => {
             let config = CONFIG.read();
             let aspect_ratio_good = media.primary_image_aspect_ratio.unwrap_or_default() > 1.5;
 
             if config.general.use_episode_image && aspect_ratio_good {
-                api_client.get_episode_primary_image_url(media, tile_display.height())
+                api_client.get_episode_primary_image_url(media, height)
             } else if aspect_ratio_good {
-                api_client.get_parent_or_item_thumbnail_url(media, tile_display.height())
+                api_client.get_parent_or_item_thumbnail_url(media, height)
             } else {
-                api_client.get_episode_thumbnail_or_backdrop_url(media, tile_display.height())
+                api_client.get_episode_thumbnail_or_backdrop_url(media, height)
             }
         }
-        MediaTileDisplay::Cover | MediaTileDisplay::CoverLarge => {
-            api_client.get_parent_or_item_primary_image_url(media)
-        }
+        MediaTileDisplay::Cover | MediaTileDisplay::CoverLarge => api_client
+            .get_parent_or_item_primary_image_url(media, scaled(tile_display.width(), scale)),
         MediaTileDisplay::CollectionWide | MediaTileDisplay::Buttons => {
             api_client.get_collection_thumbnail_url(media)
         }
@@ -591,7 +595,7 @@ async fn get_thumbnail(
         for kind in kinds {
             if let Ok(mut url) = api_client.root.join(&format!("Items/{owner}/Images/{kind}")) {
                 url.query_pairs_mut()
-                    .append_pair("fillHeight", &tile_display.height().to_string())
+                    .append_pair("fillHeight", &height.to_string())
                     .append_pair("quality", "96");
                 let url = url.to_string();
                 if !candidates.contains(&url) {
