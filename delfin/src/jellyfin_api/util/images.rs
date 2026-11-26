@@ -116,7 +116,12 @@ impl ApiClient {
         Ok(url.to_string())
     }
 
-    pub fn get_parent_or_item_primary_image_url(&self, item: &BaseItemDto) -> Result<String> {
+    /// `width` in screen pixels (see `utils::pixel_scale`).
+    pub fn get_parent_or_item_primary_image_url(
+        &self,
+        item: &BaseItemDto,
+        width: i32,
+    ) -> Result<String> {
         let item_id = match item.parent_backdrop_item_id.or(item.id) {
             Some(item_id) => item_id,
             None => bail!("Missing parent backdrop item ID"),
@@ -124,7 +129,7 @@ impl ApiClient {
 
         let mut url = self.root.join(&format!("Items/{item_id}/Images/Primary"))?;
         url.query_pairs_mut()
-            .append_pair("fillWidth", "200")
+            .append_pair("fillWidth", &width.to_string())
             .append_pair("quality", "96");
 
         Ok(url.to_string())

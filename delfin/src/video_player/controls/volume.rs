@@ -10,6 +10,9 @@ use crate::{
     video_player::backends::VideoPlayerBackend,
 };
 
+/// Mouse wheel notch, arrow keys on the slider.
+const VOLUME_STEP: f64 = 0.05;
+
 pub static VOLUME_BROKER: ResettableMessageBroker<VolumeInput> = ResettableMessageBroker::new();
 
 pub struct Volume {
@@ -43,41 +46,78 @@ impl SimpleComponent for Volume {
         gtk::Box {
             gtk::Separator { add_css_class: "spacer" },
 
-            gtk::Button {
+            // The slider sits in a popover so it is there in every window
+            // width (inline it had to make room for the other buttons).
+            gtk::MenuButton {
                 set_focus_on_click: false,
-
+                set_direction: gtk::ArrowType::Up,
                 #[watch]
-                // TODO: icon is oddly bright
-                set_icon_name: if model.muted {
-                    "audio-volume-muted"
-                } else {
-                    "audio-volume-high"
-                },
+                set_icon_name: model.icon_name(),
                 #[watch]
                 set_tooltip_text: Some(tr!(
-                    "vp-volume-mute-tooltip",
-                    {"muted" => model.muted.to_string()},
+                    "vp-volume-tooltip",
+                    {"percent" => model.percent()},
                 )),
 
-                connect_clicked[sender] => move |_| {
-                    sender.input(VolumeInput::ToggleMute);
+                // Mouse wheel over the button changes the volume directly.
+                add_controller = gtk::EventControllerScroll {
+                    set_flags: gtk::EventControllerScrollFlags::VERTICAL,
+                    connect_scroll[sender] => move |_, _, dy| {
+                        sender.input(VolumeInput::ChangeVolume(-dy * VOLUME_STEP));
+                        gtk::glib::Propagation::Stop
+                    },
                 },
-            },
 
-            gtk::Scale {
-                set_focus_on_click: false,
+                #[wrap(Some)]
+                set_popover = &gtk::Popover {
+                    add_css_class: "volume-popover",
 
-                #[watch]
-                #[block_signal(volume_changed_handler)]
-                set_value: model.volume,
-                set_range: (0.0, 1.0),
-                #[watch]
-                set_sensitive: !model.muted,
-                // TODO: responsive
-                set_width_request: 125,
-                connect_value_changed[sender] => move |scale| {
-                    sender.input(VolumeInput::SetVolume(scale.value()));
-                } @volume_changed_handler,
+                    gtk::Box {
+                        set_orientation: gtk::Orientation::Vertical,
+                        set_spacing: 6,
+
+                        gtk::Label {
+                            add_css_class: "numeric",
+                            #[watch]
+                            set_label: &format!("{} %", model.percent()),
+                        },
+
+                        gtk::Scale {
+                            set_orientation: gtk::Orientation::Vertical,
+                            set_inverted: true,
+                            set_focus_on_click: false,
+                            set_range: (0.0, 1.0),
+                            set_increments: (VOLUME_STEP, 0.1),
+                            set_height_request: 160,
+                            set_halign: gtk::Align::Center,
+                            #[watch]
+                            #[block_signal(volume_changed_handler)]
+                            set_value: model.volume,
+                            connect_value_changed[sender] => move |scale| {
+                                sender.input(VolumeInput::SetVolume(scale.value()));
+                            } @volume_changed_handler,
+                        },
+
+                        gtk::Button {
+                            set_focus_on_click: false,
+                            add_css_class: "flat",
+                            #[watch]
+                            set_icon_name: if model.muted {
+                                "audio-volume-muted"
+                            } else {
+                                "audio-volume-high"
+                            },
+                            #[watch]
+                            set_tooltip_text: Some(tr!(
+                                "vp-volume-mute-tooltip",
+                                {"muted" => model.muted.to_string()},
+                            )),
+                            connect_clicked[sender] => move |_| {
+                                sender.input(VolumeInput::ToggleMute);
+                            },
+                        },
+                    },
+                },
             },
 
             gtk::Separator { add_css_class: "spacer" },
@@ -137,11 +177,13 @@ impl SimpleComponent for Volume {
                 self.save_debounce.debounce();
             }
             VolumeInput::SetVolume(volume) => {
+                self.unmute();
                 self.volume = volume;
                 self.video_player.borrow().set_volume(volume);
                 self.save_debounce.debounce();
             }
             VolumeInput::ChangeVolume(amount) => {
+                self.unmute();
                 let volume = f64::clamp(self.volume + amount, 0.0, 1.0);
                 self.volume = volume;
                 self.video_player.borrow().set_volume(volume);
@@ -166,6 +208,30 @@ impl SimpleComponent for Volume {
 }
 
 impl Volume {
+    fn icon_name(&self) -> &'static str {
+        if self.muted || self.volume <= 0.0 {
+            "audio-volume-muted"
+        } else if self.volume < 0.34 {
+            "audio-volume-low"
+        } else if self.volume < 0.67 {
+            "audio-volume-medium"
+        } else {
+            "audio-volume-high"
+        }
+    }
+
+    fn percent(&self) -> i64 {
+        (self.volume * 100.0).round() as i64
+    }
+
+    /// Changing the volume while muted makes it audible again.
+    fn unmute(&mut self) {
+        if self.muted {
+            self.muted = false;
+            self.video_player.borrow().set_muted(false);
+        }
+    }
+
     fn save_settings(&self) {
         let mut config = CONFIG.write();
         config.video_player.volume = self.volume;

@@ -10,6 +10,7 @@ pub mod item_name;
 pub mod main_window;
 pub mod message_broker;
 pub mod mini_player;
+pub mod pixel_scale;
 pub mod playable;
 pub mod rgba;
 pub mod round;

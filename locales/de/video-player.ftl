@@ -1,3 +1,4 @@
+vp-volume-tooltip = Lautstärke: { $percent } %
 vp-volume-mute-tooltip =
     { $muted ->
         [true] Stummschaltung aufheben
