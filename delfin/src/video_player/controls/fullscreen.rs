@@ -15,6 +15,8 @@ pub static FULLSCREEN_BROKER: ResettableMessageBroker<FullscreenInput> =
 
 pub struct Fullscreen {
     fullscreen: bool,
+    /// Was the window maximized before fullscreen? Windows does not restore it.
+    maximized_before: bool,
     fullscreened_signal_handler_id: Option<SignalHandlerId>,
 }
 
@@ -71,6 +73,7 @@ impl SimpleComponent for Fullscreen {
 
         let model = Fullscreen {
             fullscreen: window.is_fullscreen(),
+            maximized_before: window.is_maximized(),
             fullscreened_signal_handler_id: Some(fullscreened_signal_handler_id),
         };
 
@@ -91,7 +94,12 @@ impl SimpleComponent for Fullscreen {
             FullscreenInput::ToggleFullscreen => {
                 if let Some(window) = get_main_window() {
                     self.fullscreen = !self.fullscreen;
-                    window.set_fullscreened(self.fullscreen);
+                    if self.fullscreen {
+                        self.maximized_before = window.is_maximized();
+                        window.set_fullscreened(true);
+                    } else {
+                        self.leave_fullscreen(&window);
+                    }
                 } else {
                     error!("Failed to get main window");
                 }
@@ -99,7 +107,11 @@ impl SimpleComponent for Fullscreen {
             FullscreenInput::ExitFullscreen => {
                 if let Some(window) = get_main_window() {
                     self.fullscreen = false;
-                    window.set_fullscreened(false);
+                    // Only when fullscreen: on Windows, leaving fullscreen
+                    // restores the window, so Escape would unmaximize it.
+                    if window.is_fullscreen() {
+                        self.leave_fullscreen(&window);
+                    }
                 } else {
                     error!("Failed to get main window");
                 }
@@ -107,6 +119,17 @@ impl SimpleComponent for Fullscreen {
             FullscreenInput::WindowFullscreenChanged(fullscreen) => {
                 self.fullscreen = fullscreen;
             }
+        }
+    }
+}
+
+impl Fullscreen {
+    fn leave_fullscreen(&self, window: &impl IsA<gtk::Window>) {
+        window.set_fullscreened(false);
+        // Windows restores the size from before fullscreen, not maximized.
+        #[cfg(windows)]
+        if self.maximized_before {
+            window.maximize();
         }
     }
 }

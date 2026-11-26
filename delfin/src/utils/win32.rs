@@ -387,6 +387,10 @@ window { font-family: "Inter", "Liberation Sans", "Arial", sans-serif; }
 .title-1, .title-2, .title-3, .settings-heading {
   font-family: "Space Grotesk", "Inter", "Liberation Sans", "Arial", sans-serif;
 }
+/* With Direct Composition the area outside the window is drawn black, not
+   transparent: no shadow (the patched GTK then keeps no margin) and square
+   corners. */
+window.csd { box-shadow: none; border-radius: 0; }
 "#;
 
 /// Same fonts as on Linux, text size as in other Windows programs.

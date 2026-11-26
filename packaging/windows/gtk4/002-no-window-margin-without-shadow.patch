@@ -1,0 +1,123 @@
+--- a/gtk/gtkwindow.c
++++ b/gtk/gtkwindow.c
+@@ -1539,7 +1539,7 @@
+   GtkBorder handle_size;
+   GtkCssBoxes css_boxes;
+   const graphene_rect_t *border_rect;
+-  float left, top;
++  float left, top, width, height;
+   const GskRoundedRect *border;
+   graphene_point_t p;
+   int resize_handle_size;
+@@ -1586,26 +1586,44 @@
+ 
+   left = border_rect->origin.x;
+   top = border_rect->origin.y;
++  width = border_rect->size.width;
++  height = border_rect->size.height;
++
++#ifdef GDK_WINDOWING_WIN32
++  if (handle_size.left == 0 && handle_size.top == 0 &&
++      handle_size.right == 0 && handle_size.bottom == 0)
++    {
++      /* No margin outside the window (see get_shadow_width): resize from a
++       * strip along the edge inside it. */
++      const int inner = RESIZE_HANDLE_SIZE / 2;
++
++      left += inner;
++      top += inner;
++      width -= 2 * inner;
++      height -= 2 * inner;
++      handle_size = (GtkBorder) { inner, inner, inner, inner };
++    }
++#endif
+ 
+   if (x < left && x >= left - handle_size.left)
+     {
+       if (y < top + resize_handle_size && y >= top - handle_size.top)
+         return edge_or_minus_one (GDK_SURFACE_EDGE_NORTH_WEST);
+ 
+-      if (y > top + border_rect->size.height - resize_handle_size &&
+-          y <= top + border_rect->size.height + handle_size.bottom)
++      if (y > top + height - resize_handle_size &&
++          y <= top + height + handle_size.bottom)
+         return edge_or_minus_one (GDK_SURFACE_EDGE_SOUTH_WEST);
+ 
+       return edge_or_minus_one (GDK_SURFACE_EDGE_WEST);
+     }
+-  else if (x > left + border_rect->size.width &&
+-           x <= left + border_rect->size.width + handle_size.right)
++  else if (x > left + width &&
++           x <= left + width + handle_size.right)
+     {
+       if (y < top + resize_handle_size  && y >= top - handle_size.top)
+         return edge_or_minus_one (GDK_SURFACE_EDGE_NORTH_EAST);
+ 
+-      if (y > top + border_rect->size.height - resize_handle_size &&
+-          y <= top + border_rect->size.height + handle_size.bottom)
++      if (y > top + height - resize_handle_size &&
++          y <= top + height + handle_size.bottom)
+         return edge_or_minus_one (GDK_SURFACE_EDGE_SOUTH_EAST);
+ 
+       return edge_or_minus_one (GDK_SURFACE_EDGE_EAST);
+@@ -1615,20 +1633,20 @@
+       if (x < left + resize_handle_size && x >= left - handle_size.left)
+         return edge_or_minus_one (GDK_SURFACE_EDGE_NORTH_WEST);
+ 
+-      if (x > left + border_rect->size.width - resize_handle_size &&
+-          x <= left + border_rect->size.width + handle_size.right)
++      if (x > left + width - resize_handle_size &&
++          x <= left + width + handle_size.right)
+         return edge_or_minus_one (GDK_SURFACE_EDGE_NORTH_EAST);
+ 
+       return edge_or_minus_one (GDK_SURFACE_EDGE_NORTH);
+     }
+-  else if (y > top + border_rect->size.height &&
+-           y <= top + border_rect->size.height + handle_size.bottom)
++  else if (y > top + height &&
++           y <= top + height + handle_size.bottom)
+     {
+       if (x < left + resize_handle_size && x >= left - handle_size.left)
+         return edge_or_minus_one (GDK_SURFACE_EDGE_SOUTH_WEST);
+ 
+-      if (x > left + border_rect->size.width - resize_handle_size &&
+-          x <= left + border_rect->size.width + handle_size.right)
++      if (x > left + width - resize_handle_size &&
++          x <= left + width + handle_size.right)
+         return edge_or_minus_one (GDK_SURFACE_EDGE_SOUTH_EAST);
+ 
+       return edge_or_minus_one (GDK_SURFACE_EDGE_SOUTH);
+@@ -1923,8 +1941,15 @@
+   priv->click_gesture = gtk_gesture_click_new ();
+   gtk_event_controller_set_static_name (GTK_EVENT_CONTROLLER (priv->click_gesture), "gtk-window-resize");
+   gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (priv->click_gesture), 0);
++#ifdef GDK_WINDOWING_WIN32
++  /* The resize strip may lie inside the window (see get_edge_for_coordinates),
++   * over widgets that would otherwise take the click first. */
++  gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (priv->click_gesture),
++                                              GTK_PHASE_CAPTURE);
++#else
+   gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (priv->click_gesture),
+                                               GTK_PHASE_BUBBLE);
++#endif
+   g_signal_connect (priv->click_gesture, "pressed",
+                     G_CALLBACK (click_gesture_pressed_cb), object);
+   gtk_widget_add_controller (GTK_WIDGET (object), GTK_EVENT_CONTROLLER (priv->click_gesture));
+@@ -4195,6 +4220,17 @@
+   /* Calculate the size of the drop shadows ... */
+   gtk_css_shadow_value_get_extents (style->used->box_shadow, shadow_width);
+ 
++#ifdef GDK_WINDOWING_WIN32
++  /* Without a shadow there is no margin around the window on Windows: with
++   * Direct Composition the margin can't be transparent and shows as a black
++   * frame. The resize handles move inside the window instead (see
++   * get_edge_for_coordinates). */
++  if (GDK_IS_WIN32_DISPLAY (gtk_widget_get_display (GTK_WIDGET (window))) &&
++      shadow_width->left == 0 && shadow_width->top == 0 &&
++      shadow_width->right == 0 && shadow_width->bottom == 0)
++    return;
++#endif
++
+   shadow_width->left = MAX (shadow_width->left, RESIZE_HANDLE_SIZE);
+   shadow_width->top = MAX (shadow_width->top, RESIZE_HANDLE_SIZE);
+   shadow_width->bottom = MAX (shadow_width->bottom, RESIZE_HANDLE_SIZE);

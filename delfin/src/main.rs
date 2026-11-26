@@ -31,6 +31,22 @@ fn main() {
     if std::env::var_os("DBUS_SESSION_BUS_ADDRESS").is_none() {
         std::env::set_var("DBUS_SESSION_BUS_ADDRESS", "disabled:");
     }
+    // Draw with the graphics card: without Direct Composition GTK 4.24 falls
+    // back to software drawing (Cairo) on Windows, which drops frames during
+    // playback. DComp is opt-in in GTK because it can't make the area around
+    // the window transparent (a black margin); the window shadow is switched
+    // off in `apply_linux_look` and the patched GTK then keeps no margin.
+    // Vulkan rather than OpenGL: with OpenGL the picture flickered whenever
+    // the controls or the seek preview changed over the playing video.
+    #[cfg(windows)]
+    {
+        if std::env::var_os("GDK_DEBUG").is_none() {
+            std::env::set_var("GDK_DEBUG", "dcomp");
+        }
+        if std::env::var_os("GSK_RENDERER").is_none() {
+            std::env::set_var("GSK_RENDERER", "vulkan");
+        }
+    }
 
     // Log lines never contain access tokens (stream URLs carry `ApiKey=`).
     env_logger::builder()

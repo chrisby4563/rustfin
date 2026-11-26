@@ -6,7 +6,7 @@ _realname=gtk4
 pkgbase="mingw-w64-${_realname}"
 pkgname=("${MINGW_PACKAGE_PREFIX}-${_realname}")
 pkgver=4.24.2
-pkgrel=1.1  # rustfin: rounded HiDPI scale, see prepare()
+pkgrel=1.2  # rustfin: rounded HiDPI scale, no window margin; see prepare()
 pkgdesc="GObject-based multi-platform GUI toolkit (v4) (mingw-w64)"
 arch=('any')
 mingw_arch=('ucrt64' 'clang64' 'clangarm64')
@@ -54,9 +54,11 @@ replaces=("${MINGW_PACKAGE_PREFIX}-gtk4-media-gstreamer")
 source=(
   "https://download.gnome.org/sources/gtk/${pkgver:0:4}/gtk-${pkgver}.tar.xz"
   "001-fix-font-rendering.patch"
+  "002-no-window-margin-without-shadow.patch"
 )
 sha256sums=('05561abc25d1b1400136bf79ab68830cb4b053d1922ae97e551b3f19755bf3cb'
-            'ebac78616a7668edbfdd77b9959ad63239aa59ed12b995a9663bf2df7158be26')
+            'ebac78616a7668edbfdd77b9959ad63239aa59ed12b995a9663bf2df7158be26'
+            '899e986a6863171e319aef01ff474595795b3e4fce7545fdfb3d6571124188f5')
 
 prepare() {
   cd gtk-${pkgver}
@@ -72,6 +74,11 @@ prepare() {
   grep -q 'return dpix / USER_DEFAULT_SCREEN_DPI > 1 ? dpix / USER_DEFAULT_SCREEN_DPI : 1;' $f
   sed -i 's|return dpix / USER_DEFAULT_SCREEN_DPI > 1 ? dpix / USER_DEFAULT_SCREEN_DPI : 1;|return (dpix + USER_DEFAULT_SCREEN_DPI / 2) / USER_DEFAULT_SCREEN_DPI > 1 ? (dpix + USER_DEFAULT_SCREEN_DPI / 2) / USER_DEFAULT_SCREEN_DPI : 1;|' $f
   grep -q 'dpix + USER_DEFAULT_SCREEN_DPI / 2' $f
+
+  # Rustfin: Direct Composition (needed for GPU drawing) can't make the margin
+  # around a window transparent; it shows as a black frame. Windows without a
+  # shadow keep no margin and are resized from a strip inside their edge.
+  patch -Np1 -i ../002-no-window-margin-without-shadow.patch
 }
 
 build() {
